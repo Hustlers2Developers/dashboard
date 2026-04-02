@@ -15,7 +15,7 @@ import { Plus, Trash2, Users, ChevronDown, ChevronUp } from 'lucide-react';
 
 const TeamMembersList = ({ teamId }: { teamId: string }) => {
   const { data, loading } = useQuery(GET_TEAM_MEMBERS, { variables: { teamId } });
-  const members = data?.teamMembersByTeam || [];
+  const members = (data as any)?.teamMembersByTeam || [];
 
   if (loading) return <Skeleton className="h-8 w-full" />;
   if (members.length === 0) return <p className="text-sm text-muted-foreground">No members yet</p>;
