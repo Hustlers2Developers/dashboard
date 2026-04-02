@@ -47,7 +47,7 @@ const Teams = () => {
   const [createTeam, { loading: creating }] = useMutation(CREATE_TEAM);
   const [deleteTeam] = useMutation(DELETE_TEAM);
 
-  const teams = data?.teamsByOrganization || [];
+  const teams = (data as any)?.teamsByOrganization || [];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

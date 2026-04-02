@@ -29,11 +29,13 @@ const Login = () => {
 
     try {
       const { data } = await login({ variables: { input: { email, password } } });
-      setTokens(data.login.accessToken, data.login.refreshToken);
+      const loginData = data as any;
+      setTokens(loginData.login.accessToken, loginData.login.refreshToken);
 
       const { data: userData } = await fetchUser();
-      if (userData?.currentUser) {
-        setUser(userData.currentUser);
+      const userResult = userData as any;
+      if (userResult?.currentUser) {
+        setUser(userResult.currentUser);
       }
 
       toast.success('Welcome back!');

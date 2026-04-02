@@ -44,7 +44,7 @@ const ProjectDetail = () => {
   const [updateTask] = useMutation(UPDATE_TASK);
   const [deleteTask] = useMutation(DELETE_TASK);
 
-  const tasks = data?.tasksByProject || [];
+  const tasks = (data as any)?.tasksByProject || [];
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();

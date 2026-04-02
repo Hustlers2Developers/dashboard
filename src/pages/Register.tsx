@@ -36,11 +36,13 @@ const Register = () => {
 
     try {
       const { data } = await register({ variables: { input: { email, password, name } } });
-      setTokens(data.register.accessToken, data.register.refreshToken);
+      const regData = data as any;
+      setTokens(regData.register.accessToken, regData.register.refreshToken);
 
       const { data: userData } = await fetchUser();
-      if (userData?.currentUser) {
-        setUser(userData.currentUser);
+      const userResult = userData as any;
+      if (userResult?.currentUser) {
+        setUser(userResult.currentUser);
       }
 
       toast.success('Account created successfully!');

@@ -28,7 +28,7 @@ const Projects = () => {
   const [createProject, { loading: creating }] = useMutation(CREATE_PROJECT);
   const [deleteProject] = useMutation(DELETE_PROJECT);
 
-  const projects = data?.projectsByOrganization || [];
+  const projects = (data as any)?.projectsByOrganization || [];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

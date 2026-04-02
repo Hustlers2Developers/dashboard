@@ -21,8 +21,8 @@ const Dashboard = () => {
     skip: !orgId,
   });
 
-  const projects = projectsData?.projectsByOrganization || [];
-  const teams = teamsData?.teamsByOrganization || [];
+  const projects = (projectsData as any)?.projectsByOrganization || [];
+  const teams = (teamsData as any)?.teamsByOrganization || [];
 
   const stats = [
     { label: 'Total Projects', value: projects.length, icon: FolderKanban, color: 'text-primary' },
