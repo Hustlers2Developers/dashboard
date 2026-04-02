@@ -1,4 +1,4 @@
-import { useQuery } from '@apollo/client';
+import { useQuery } from '@apollo/client/react';
 import { useAuthStore } from '@/stores/auth-store';
 import { GET_PROJECTS_BY_ORG } from '@/graphql/mutations/projects';
 import { GET_TEAMS_BY_ORG } from '@/graphql/mutations/teams';

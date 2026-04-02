@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
-import { useMutation } from '@apollo/client';
+import { useMutation } from '@apollo/client/react';
 import { LOGOUT_MUTATION } from '@/graphql/mutations/auth';
 import { LayoutDashboard, FolderKanban, Users, LogOut, Menu, X, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';

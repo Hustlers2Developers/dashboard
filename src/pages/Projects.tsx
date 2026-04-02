@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuthStore } from '@/stores/auth-store';
 import { GET_PROJECTS_BY_ORG, CREATE_PROJECT, DELETE_PROJECT } from '@/graphql/mutations/projects';
 import { DashboardLayout } from '@/components/DashboardLayout';
