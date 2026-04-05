@@ -1,34 +1,56 @@
-import { useQuery } from '@apollo/client/react';
-import { useAuthStore } from '@/stores/auth-store';
-import { GET_PROJECTS_BY_ORG } from '@/graphql/mutations/projects';
-import { GET_TEAMS_BY_ORG } from '@/graphql/mutations/teams';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { FolderKanban, Users, Activity, TrendingUp } from 'lucide-react';
-import { DashboardLayout } from '@/components/DashboardLayout';
+import { useQuery } from "@apollo/client/react";
+import { useAuthStore } from "@/stores/auth-store";
+import { GET_PROJECTS_BY_ORG } from "@/graphql/mutations/projects";
+import { GET_TEAMS_BY_ORG } from "@/graphql/mutations/teams";
+import { Project, Team } from "@/graphql/graphql";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FolderKanban, Users, Activity, TrendingUp } from "lucide-react";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
 const Dashboard = () => {
   const user = useAuthStore((s) => s.user);
-  const orgId = user?.orgId || '';
+  const orgId = user?.orgId || "";
 
-  const { data: projectsData, loading: projectsLoading } = useQuery(GET_PROJECTS_BY_ORG, {
+  const { data: projectsData, loading: projectsLoading } = useQuery<
+    { projectsByOrganization: Project[] },
+    { organizationId: string }
+  >(GET_PROJECTS_BY_ORG, {
     variables: { organizationId: orgId },
     skip: !orgId,
   });
 
-  const { data: teamsData, loading: teamsLoading } = useQuery(GET_TEAMS_BY_ORG, {
+  const { data: teamsData, loading: teamsLoading } = useQuery<
+    { teamsByOrganization: Team[] },
+    { organizationId: string }
+  >(GET_TEAMS_BY_ORG, {
     variables: { organizationId: orgId },
     skip: !orgId,
   });
 
-  const projects = (projectsData as any)?.projectsByOrganization || [];
-  const teams = (teamsData as any)?.teamsByOrganization || [];
+  const projects = projectsData?.projectsByOrganization || [];
+  const teams = teamsData?.teamsByOrganization || [];
 
   const stats = [
-    { label: 'Total Projects', value: projects.length, icon: FolderKanban, color: 'text-primary' },
-    { label: 'Active Teams', value: teams.length, icon: Users, color: 'text-accent' },
-    { label: 'Recent Activity', value: projects.length + teams.length, icon: Activity, color: 'text-saffron' },
-    { label: 'Growth', value: '+12%', icon: TrendingUp, color: 'text-primary' },
+    {
+      label: "Total Projects",
+      value: projects.length,
+      icon: FolderKanban,
+      color: "text-primary",
+    },
+    {
+      label: "Active Teams",
+      value: teams.length,
+      icon: Users,
+      color: "text-accent",
+    },
+    {
+      label: "Recent Activity",
+      value: projects.length + teams.length,
+      icon: Activity,
+      color: "text-saffron",
+    },
+    { label: "Growth", value: "+12%", icon: TrendingUp, color: "text-primary" },
   ];
 
   return (
@@ -36,8 +58,12 @@ const Dashboard = () => {
       <div className="space-y-6">
         {/* Welcome */}
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}!</h2>
-          <p className="text-muted-foreground">Here's an overview of your organization.</p>
+          <h2 className="text-2xl font-bold text-foreground">
+            Welcome back{user?.email ? `, ${user.email.split("@")[0]}` : ""}!
+          </h2>
+          <p className="text-muted-foreground">
+            Here's an overview of your organization.
+          </p>
         </div>
 
         {/* Stats */}
@@ -45,14 +71,18 @@ const Dashboard = () => {
           {stats.map((stat) => (
             <Card key={stat.label} className="border-border">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{stat.label}</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {stat.label}
+                </CardTitle>
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </CardHeader>
               <CardContent>
                 {projectsLoading || teamsLoading ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
-                  <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+                  <div className="text-2xl font-bold text-foreground">
+                    {stat.value}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -67,20 +97,34 @@ const Dashboard = () => {
           <CardContent>
             {projectsLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
               </div>
             ) : projects.length === 0 ? (
-              <p className="py-8 text-center text-muted-foreground">No projects yet. Create your first project!</p>
+              <p className="py-8 text-center text-muted-foreground">
+                No projects yet. Create your first project!
+              </p>
             ) : (
               <div className="space-y-3">
-                {projects.slice(0, 5).map((project: any) => (
-                  <div key={project.id} className="flex items-center justify-between rounded-lg border border-border bg-background p-4">
+                {projects.slice(0, 5).map((project: Project) => (
+                  <div
+                    key={project.id}
+                    className="flex items-center justify-between rounded-lg border border-border bg-background p-4"
+                  >
                     <div>
-                      <h4 className="font-medium text-foreground">{project.name}</h4>
-                      <p className="text-sm text-muted-foreground">{project.description || 'No description'}</p>
+                      <h4 className="font-medium text-foreground">
+                        {project.name}
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        {project.description || "No description"}
+                      </p>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(project.createdAt).toLocaleDateString()}
+                      {new Date(parseInt(project.createdAt)).toLocaleDateString(
+                        "en-US",
+                        { year: "numeric", month: "short", day: "numeric" },
+                      )}
                     </span>
                   </div>
                 ))}
@@ -97,22 +141,38 @@ const Dashboard = () => {
           <CardContent>
             {teamsLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
               </div>
             ) : teams.length === 0 ? (
-              <p className="py-8 text-center text-muted-foreground">No teams yet.</p>
+              <p className="py-8 text-center text-muted-foreground">
+                No teams yet.
+              </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {teams.slice(0, 6).map((team: any) => (
-                  <div key={team.id} className="rounded-lg border border-border bg-background p-4">
+                {teams.slice(0, 6).map((team: Team) => (
+                  <div
+                    key={team.id}
+                    className="rounded-lg border border-border bg-background p-4"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                         <Users className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-foreground">{team.name}</h4>
+                        <h4 className="font-medium text-foreground">
+                          {team.name}
+                        </h4>
                         <p className="text-xs text-muted-foreground">
-                          Created {new Date(team.createdAt).toLocaleDateString()}
+                          Created{" "}
+                          {new Date(
+                            parseInt(team.createdAt),
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </p>
                       </div>
                     </div>

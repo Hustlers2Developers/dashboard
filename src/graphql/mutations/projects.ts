@@ -50,6 +50,9 @@ export const GET_TASKS_BY_PROJECT = gql`
       title
       description
       status
+      githubRepo
+      githubBranch
+      githubIssueUrl
       assignedUserId
       assignedTeamId
       createdAt
@@ -66,8 +69,12 @@ export const CREATE_TASK = gql`
       description
       projectId
       status
+      githubRepo
+      githubBranch
+      githubIssueUrl
       assignedUserId
       assignedTeamId
+      createdBy
       createdAt
     }
   }
@@ -78,7 +85,13 @@ export const UPDATE_TASK = gql`
     updateTask(id: $id, input: $input) {
       id
       title
+      description
       status
+      githubRepo
+      githubBranch
+      githubIssueUrl
+      assignedUserId
+      assignedTeamId
       updatedAt
     }
   }

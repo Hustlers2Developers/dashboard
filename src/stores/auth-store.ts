@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { startTokenRefreshTimer, stopTokenRefreshTimer } from '@/lib/graphql-client';
 
 interface User {
   sub: string;
@@ -16,20 +17,31 @@ interface AuthState {
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
   logout: () => void;
+  initialize: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       accessToken: null,
       refreshToken: null,
       user: null,
       isAuthenticated: false,
-      setTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken, isAuthenticated: true }),
+      setTokens: (accessToken, refreshToken) => {
+        set({ accessToken, refreshToken, isAuthenticated: true });
+        startTokenRefreshTimer();
+      },
       setUser: (user) => set({ user }),
-      logout: () =>
-        set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false }),
+      logout: () => {
+        stopTokenRefreshTimer();
+        set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
+      },
+      initialize: () => {
+        const state = get();
+        if (state.accessToken && state.refreshToken) {
+          startTokenRefreshTimer();
+        }
+      },
     }),
     {
       name: 'auth-storage',

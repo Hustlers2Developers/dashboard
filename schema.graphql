@@ -1,0 +1,757 @@
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+input AcceptInviteInput {
+  name: String!
+  password: String!
+  token: String!
+}
+
+enum ActivityType {
+  LOGIN
+  MEETING_ATTENDED
+  PROJECT_CONTRIBUTION
+  TASK_UPDATE
+}
+
+type Attendance {
+  checkInTime: String
+  checkOutTime: String
+  createdAt: String!
+  date: String!
+  id: String!
+  status: AttendanceStatus!
+  updatedAt: String!
+  userId: String!
+}
+
+input AttendanceFilterInput {
+  endDate: String
+  organizationId: String!
+  startDate: String
+  userId: String
+}
+
+enum AttendanceStatus {
+  ABSENT
+  PRESENT
+}
+
+type AttendanceSummary {
+  attendancePercentage: Float!
+  createdAt: String!
+  id: String!
+  presentDays: Int!
+  totalDays: Int!
+  updatedAt: String!
+  userId: String!
+}
+
+type AuthResponse {
+  accessToken: String!
+  refreshToken: String!
+}
+
+type AuthUser {
+  email: String!
+  orgId: String!
+  sub: String!
+  systemRole: SystemRole!
+}
+
+type BulkAttendanceResult {
+  errors: [String!]!
+  failedCount: Int!
+  successCount: Int!
+}
+
+input BulkMarkAttendanceInput {
+  attendances: [SingleAttendanceEntry!]!
+  date: String!
+  organizationId: String!
+}
+
+type Coupon {
+  code: String!
+  createdAt: DateTime!
+  discountType: String!
+  discountValue: Float!
+  expiresAt: DateTime
+  id: ID!
+  maxDiscountAmount: Float
+  maxUsageCount: Int!
+  minOrderAmount: Float!
+  status: String!
+  updatedAt: DateTime!
+  usageCount: Int!
+  usagePerUser: Int!
+}
+
+type CouponStats {
+  coupon: Coupon!
+  remainingUsage: Int!
+  totalDiscount: Float!
+  totalOrders: Int!
+  totalUsed: Int!
+}
+
+enum CouponStatus {
+  ACTIVE
+  EXPIRED
+  INACTIVE
+  USED
+}
+
+type CouponValidation {
+  discount: Float!
+  isValid: Boolean!
+  message: String!
+}
+
+input CreateCouponInput {
+  code: String!
+  discountType: DiscountType!
+  discountValue: Float!
+  expiresAt: DateTime
+  maxDiscountAmount: Float
+  maxUsageCount: Int
+  minOrderAmount: Float
+  usagePerUser: Int
+}
+
+input CreateDepartmentInput {
+  name: String!
+}
+
+input CreateInviteInput {
+  """Email of the person being invited (the invitee)"""
+  email: String!
+  """Organization to invite the person to"""
+  organizationId: String!
+  """Optional role to assign — defaults to VIEWER if omitted"""
+  roleId: String
+}
+
+type CreateInviteLinkResponse {
+  email: String!
+  expiresAt: String!
+  inviteId: ID!
+  inviteLink: String!
+  invitedById: String!
+  organizationId: String!
+  roleId: String!
+}
+
+input CreateMembershipInput {
+  organizationId: String!
+  roleId: String!
+  userId: String!
+}
+
+input CreateOrganizationInput {
+  name: String!
+}
+
+input CreatePositionInput {
+  departmentId: String!
+  name: String!
+}
+
+input CreatePricingPlanInput {
+  description: String
+  durationMonths: Int
+  features: [String!]
+  isActive: Boolean
+  isFeatured: Boolean
+  name: String!
+  price: Float!
+}
+
+input CreateProjectInput {
+  description: String
+  name: String!
+  organizationId: String!
+}
+
+input CreateSaleDiscountInput {
+  description: String
+  discountType: DiscountType!
+  discountValue: Float!
+  endDate: DateTime!
+  isActive: Boolean
+  isAutoApply: Boolean
+  maxDiscountAmount: Float
+  name: String!
+  planId: String
+  startDate: DateTime!
+}
+
+input CreateSessionInput {
+  device: String
+  userId: String!
+}
+
+input CreateTaskInput {
+  assignedTeamId: String
+  assignedUserId: String
+  description: String
+  githubBranch: String
+  githubIssueUrl: String
+  githubRepo: String
+  projectId: String!
+  status: TaskStatus
+  title: String!
+}
+
+input CreateTeamInput {
+  name: String!
+  organizationId: String!
+  projectId: String
+}
+
+input CreateTeamMemberInput {
+  role: TeamRole
+  teamId: String!
+  userId: String!
+}
+
+scalar DateTime
+
+type Department {
+  createdAt: String!
+  id: ID!
+  name: String!
+  organizationId: String!
+  updatedAt: String!
+}
+
+type DiscountStats {
+  averageDiscount: Float!
+  daysRemaining: Int!
+  discount: SaleDiscount!
+  isActive: Boolean!
+  totalDiscountGiven: Float!
+  totalOrders: Int!
+}
+
+enum DiscountType {
+  FIXED_AMOUNT
+  PERCENTAGE
+}
+
+input InitiateOrderInput {
+  couponCode: String
+  planId: String!
+  redirectUrl: String
+}
+
+"""
+Represents an invitation sent to a user to join an organization.
+- email:          The invitee's email — the person who is being invited
+- invitedById:    User ID of the person who created/sent this invite
+- organizationId: The organization the invitee is being invited to
+- roleId:         The role assigned to the invitee upon acceptance
+- acceptedAt:     Timestamp when the invitee accepted (null if pending)
+"""
+type Invite {
+  """ISO timestamp — set when the invitee accepts (null if still pending)"""
+  acceptedAt: String
+  createdAt: String!
+  """The invitee's email — person who is being invited"""
+  email: String!
+  """ISO timestamp — invite expires after this date"""
+  expiresAt: String!
+  id: ID!
+  """User ID of the admin/owner who sent this invite"""
+  invitedById: String!
+  """The organization this invite belongs to"""
+  organizationId: String!
+  """The role assigned to the invitee upon acceptance"""
+  roleId: String!
+  token: String!
+}
+
+type InviteValidationResult {
+  email: String!
+  expiresAt: String!
+  organizationId: String!
+  roleId: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input MarkAttendanceInput {
+  date: String!
+  organizationId: String!
+  status: AttendanceStatus!
+  userId: String!
+}
+
+type Membership {
+  id: ID!
+  isActive: Boolean!
+  joinedAt: String!
+  organizationId: String!
+  roleId: String!
+  userId: String!
+}
+
+type Mutation {
+  acceptInvite(input: AcceptInviteInput!): AuthResponse!
+  bulkMarkAttendance(input: BulkMarkAttendanceInput!): BulkAttendanceResult!
+  checkIn(organizationId: String!): Attendance!
+  checkOut: Attendance!
+  createCoupon(input: CreateCouponInput!): Coupon!
+  createDepartment(input: CreateDepartmentInput!): Department!
+  createInviteLink(input: CreateInviteInput!): CreateInviteLinkResponse!
+  createMembership(input: CreateMembershipInput!): Membership!
+  createOrganization(input: CreateOrganizationInput!): Organization!
+  createPosition(input: CreatePositionInput!): Position!
+  createPricingPlan(input: CreatePricingPlanInput!): PricingPlan!
+  createProject(input: CreateProjectInput!): Project!
+  createSaleDiscount(input: CreateSaleDiscountInput!): SaleDiscount!
+  createSession(input: CreateSessionInput!): Session!
+  createTask(input: CreateTaskInput!): Task!
+  createTeam(input: CreateTeamInput!): Team!
+  createTeamMember(input: CreateTeamMemberInput!): TeamMember!
+  deactivateCoupon(id: String!): Coupon!
+  deactivateSaleDiscount(id: String!): SaleDiscount!
+  deleteDepartment(id: String!): Boolean!
+  deleteOrganization(id: String!): Boolean!
+  deletePosition(id: String!): Boolean!
+  deletePricingPlan(id: String!): PricingPlan!
+  deleteProject(id: String!): Boolean!
+  deleteTask(id: String!): Boolean!
+  deleteTeam(id: String!): Boolean!
+  deleteTeamMember(id: String!): Boolean!
+  initiateOrder(input: InitiateOrderInput!): OrderResponse!
+  login(input: LoginInput!): AuthResponse!
+  logout: Boolean!
+  markAttendance(input: MarkAttendanceInput!): Attendance!
+  recordDailyVisit: RecordVisitResponse!
+  refreshTokens: AuthResponse!
+  register(input: RegisterInput!): AuthResponse!
+  updateCoupon(id: String!, input: UpdateCouponInput!): Coupon!
+  updateDepartment(id: String!, input: UpdateDepartmentInput!): Department!
+  updateOrganization(id: String!, input: UpdateOrganizationInput!): Organization!
+  updatePosition(id: String!, input: UpdatePositionInput!): Position!
+  updatePricingPlan(id: String!, input: UpdatePricingPlanInput!): PricingPlan!
+  updateProject(id: String!, input: UpdateProjectInput!): Project!
+  updateSaleDiscount(id: String!, input: UpdateSaleDiscountInput!): SaleDiscount!
+  updateTask(id: String!, input: UpdateTaskInput!): Task!
+  updateTeam(id: String!, input: UpdateTeamInput!): Team!
+  updateTeamMember(id: String!, input: UpdateTeamMemberInput!): TeamMember!
+}
+
+type Order {
+  amount: Float!
+  checkoutUrl: String
+  coupon: Coupon
+  couponId: String
+  createdAt: DateTime!
+  discountAmount: Float!
+  finalAmount: Float!
+  id: ID!
+  merchantOrderId: String!
+  metadata: String
+  paymentGatewayOrderId: String
+  plan: PricingPlan!
+  planId: String!
+  saleDiscountId: String
+  status: String!
+  transactionId: String
+  updatedAt: DateTime!
+  user: User!
+  userId: String!
+}
+
+type OrderResponse {
+  amount: Float!
+  checkoutUrl: String!
+  order: Order!
+}
+
+enum OrderStatus {
+  CANCELLED
+  FAILED
+  PENDING
+  SUCCESS
+}
+
+type Organization {
+  id: ID!
+  invites: [Invite]
+  memberships: [Membership]
+  name: String!
+  slug: String!
+}
+
+type Position {
+  createdAt: String!
+  departmentId: String!
+  id: ID!
+  name: String!
+  updatedAt: String!
+}
+
+type PricingPlan {
+  createdAt: DateTime!
+  currency: String!
+  description: String
+  durationMonths: Int!
+  features: [String!]!
+  id: ID!
+  isActive: Boolean!
+  isFeatured: Boolean!
+  name: String!
+  price: Float!
+  updatedAt: DateTime!
+}
+
+type PricingPlanStats {
+  activeSubscriptions: Int!
+  createdAt: DateTime!
+  currency: String!
+  description: String
+  durationMonths: Int!
+  features: [String!]!
+  id: ID!
+  isActive: Boolean!
+  isFeatured: Boolean!
+  name: String!
+  price: Float!
+  totalRevenue: Float!
+  totalSubscriptions: Int!
+  updatedAt: DateTime!
+}
+
+type Project {
+  createdAt: String!
+  description: String
+  id: ID!
+  name: String!
+  organizationId: String!
+  updatedAt: String!
+}
+
+type Query {
+  activeCoupons: [Coupon!]!
+  activeDiscounts: [SaleDiscount!]!
+  allDepartments: [Department!]!
+  allPositions: [Position!]!
+  allProjects: [Project!]!
+  allTasks: [Task!]!
+  allTeams: [Team!]!
+  attendanceByOrganization(input: AttendanceFilterInput!): [Attendance!]!
+  attendanceSummaryByUser(userId: String!): AttendanceSummary
+  coupon(code: String!): Coupon!
+  couponStats(id: String!): CouponStats!
+  coupons: [Coupon!]!
+  currentUser: AuthUser!
+  department(id: String!): Department
+  departmentsByOrganization(organizationId: String!): [Department!]!
+  discountStats(id: String!): DiscountStats!
+  discounts: [SaleDiscount!]!
+  featuredPricingPlans: [PricingPlan!]!
+  getAllUsers: [User!]!
+  getUserById(id: ID!): User
+  hasActiveSubscription: Boolean!
+  """
+  Fetch invites for an organization.
+  - organizationId: required for non-super-admins
+  - email: filter by invitee's email (the person who was invited)
+  - status: "pending" | "accepted" | "expired" | "all" (default: "all")
+  """
+  invites(email: String, organizationId: String, status: String): [Invite!]!
+  memberships(organizationId: String, userId: String): [Membership!]!
+  myActivities(limit: Int): [UserActivity!]!
+  myAttendance(endDate: String, startDate: String): [Attendance!]!
+  myAttendanceSummary: AttendanceSummary
+  myStreak: UserStreakInfo!
+  mySubscription: Subscription
+  order(id: String!): Order!
+  organization(id: String!): Organization
+  organizations: [Organization]
+  planDiscount(planId: String!): SaleDiscount
+  position(id: String!): Position
+  positionsByDepartment(departmentId: String!): [Position!]!
+  positionsByOrganization(organizationId: String!): [Position!]!
+  pricingPlan(id: String!): PricingPlan!
+  pricingPlanStats(id: String!): PricingPlanStats!
+  pricingPlans: [PricingPlan!]!
+  project(id: String!): Project
+  projectsByOrganization(organizationId: String!): [Project!]!
+  sessions(userId: String): [Session!]!
+  task(id: String!): Task
+  tasksByAssignedTeam(teamId: String!): [Task!]!
+  tasksByAssignedUser(organizationId: String!, userId: String!): [Task!]!
+  tasksByOrganization(organizationId: String!): [Task!]!
+  tasksByProject(projectId: String!): [Task!]!
+  team(id: String!): Team
+  teamMember(id: String!): TeamMember
+  teamMembersByTeam(teamId: String!): [TeamMember!]!
+  teamMembersByUser(organizationId: String!, userId: String!): [TeamMember!]!
+  teamsByOrganization(organizationId: String!): [Team!]!
+  teamsByProject(projectId: String!): [Team!]!
+  userActivities(input: UserActivitiesInput!): [UserActivity!]!
+  userOrders(status: String): [Order!]!
+  userStreak(userId: String!): UserStreakInfo
+  validateCoupon(input: ValidateCouponInput!): CouponValidation!
+  validateInvite(token: String!): InviteValidationResult!
+}
+
+type RecordVisitResponse {
+  freezeEarned: Boolean!
+  freezeUsed: Boolean!
+  isNewDay: Boolean!
+  streak: UserStreakInfo!
+}
+
+type Refund {
+  amount: Float!
+  completedAt: DateTime
+  createdAt: DateTime!
+  id: ID!
+  initiatedAt: DateTime!
+  order: Order!
+  orderId: String!
+  reason: String
+  refundId: String!
+  status: String!
+  transactionId: String
+  updatedAt: DateTime!
+  user: User!
+  userId: String!
+}
+
+input RefundOrderInput {
+  reason: String
+}
+
+enum RefundStatus {
+  FAILED
+  INITIATED
+  PENDING
+  SUCCESS
+}
+
+input RegisterInput {
+  email: String!
+  name: String!
+  password: String!
+}
+
+type SaleDiscount {
+  createdAt: DateTime!
+  description: String
+  discountType: String!
+  discountValue: Float!
+  endDate: DateTime!
+  id: ID!
+  isActive: Boolean!
+  isAutoApply: Boolean!
+  maxDiscountAmount: Float
+  name: String!
+  planId: String
+  startDate: DateTime!
+  updatedAt: DateTime!
+}
+
+type Session {
+  createdAt: String!
+  device: String
+  expiresAt: String!
+  id: ID!
+  sessionId: String!
+  userId: String!
+}
+
+input SingleAttendanceEntry {
+  status: AttendanceStatus!
+  userId: String!
+}
+
+type Subscription {
+  autoRenew: Boolean!
+  createdAt: DateTime!
+  endDate: DateTime
+  id: ID!
+  lastOrderId: String
+  plan: PricingPlan!
+  planId: String!
+  startDate: DateTime!
+  status: String!
+  updatedAt: DateTime!
+  user: User!
+  userId: String!
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  INACTIVE
+}
+
+enum SystemRole {
+  SUPER_ADMIN
+  USER
+}
+
+type Task {
+  assignedTeamId: String
+  assignedUserId: String
+  createdAt: String!
+  createdBy: String!
+  description: String
+  githubBranch: String
+  githubIssueUrl: String
+  githubRepo: String
+  id: ID!
+  projectId: String!
+  status: TaskStatus!
+  title: String!
+  updatedAt: String!
+}
+
+enum TaskStatus {
+  DONE
+  IN_PROGRESS
+  REVIEW
+  TODO
+}
+
+type Team {
+  createdAt: String!
+  id: ID!
+  name: String!
+  organizationId: String!
+  projectId: String
+  updatedAt: String!
+}
+
+type TeamMember {
+  createdAt: String!
+  id: ID!
+  role: TeamRole!
+  teamId: String!
+  updatedAt: String!
+  userId: String!
+}
+
+enum TeamRole {
+  LEAD
+  MEMBER
+}
+
+input UpdateCouponInput {
+  discountValue: Float
+  expiresAt: DateTime
+  maxDiscountAmount: Float
+  maxUsageCount: Int
+  minOrderAmount: Float
+  usagePerUser: Int
+}
+
+input UpdateDepartmentInput {
+  name: String
+}
+
+input UpdateOrganizationInput {
+  name: String!
+}
+
+input UpdatePositionInput {
+  name: String
+}
+
+input UpdatePricingPlanInput {
+  description: String
+  durationMonths: Int
+  features: [String!]
+  isActive: Boolean
+  isFeatured: Boolean
+  name: String
+  price: Float
+}
+
+input UpdateProjectInput {
+  description: String
+  name: String
+}
+
+input UpdateSaleDiscountInput {
+  description: String
+  discountValue: Float
+  endDate: DateTime
+  isActive: Boolean
+  isAutoApply: Boolean
+  maxDiscountAmount: Float
+  name: String
+  startDate: DateTime
+}
+
+input UpdateTaskInput {
+  assignedTeamId: String
+  assignedUserId: String
+  description: String
+  githubBranch: String
+  githubIssueUrl: String
+  githubRepo: String
+  status: TaskStatus
+  title: String
+}
+
+input UpdateTeamInput {
+  name: String
+  projectId: String
+}
+
+input UpdateTeamMemberInput {
+  role: TeamRole!
+}
+
+type User {
+  createdAt: String!
+  email: String!
+  hashedRefreshToken: String
+  id: ID!
+  name: String
+  systemRole: SystemRole!
+  updatedAt: String!
+}
+
+input UserActivitiesInput {
+  limit: Int
+  userId: String!
+}
+
+type UserActivity {
+  activityType: ActivityType!
+  createdAt: String!
+  id: String!
+  userId: String!
+}
+
+type UserStreakInfo {
+  createdAt: String!
+  currentStreak: Int!
+  freezeUsedDate: String
+  freezesAvailable: Int!
+  id: String!
+  lastActivityDate: String
+  longestStreak: Int!
+  updatedAt: String!
+  userId: String!
+}
+
+input ValidateCouponInput {
+  code: String!
+  orderAmount: Float!
+}

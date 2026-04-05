@@ -113,12 +113,44 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
 }
 
 @layer utilities {
   .gold-gradient {
-    background: linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--saffron)) 100%);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--gold)) 0%,
+      hsl(var(--saffron)) 100%
+    );
+    @apply transition-all duration-200;
+  }
+
+  .gold-gradient:hover {
+    @apply opacity-90;
+  }
+
+  .gold-gradient:active {
+    @apply opacity-75;
+  }
+}
+
+/* Fix hover background and text color for destructive ghost buttons */
+@layer components {
+  button.hover\:text-destructive {
+    @apply transition-all;
+  }
+
+  button.hover\:text-destructive:hover {
+    @apply bg-destructive/15 text-destructive;
+  }
+
+  button.hover\:text-destructive:active {
+    @apply bg-destructive/25;
   }
 }
