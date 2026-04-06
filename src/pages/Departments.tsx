@@ -109,7 +109,7 @@ const Departments = () => {
               Manage organization departments
             </p>
           </div>
-          <Dialog open={open} onOpenChange={closeDialog}>
+          <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setEditingId(null); setName(""); } }}>
             <DialogTrigger asChild>
               <Button className="gold-gradient text-primary-foreground hover:opacity-90">
                 <Plus className="mr-2 h-4 w-4" /> New Department

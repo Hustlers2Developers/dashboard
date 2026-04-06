@@ -1,5 +1,29 @@
 import { gql } from '@apollo/client';
 
+export const GET_POSITION = gql`
+  query GetPosition($id: String!) {
+    position(id: $id) {
+      id
+      name
+      departmentId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const GET_ALL_POSITIONS = gql`
+  query GetAllPositions {
+    allPositions {
+      id
+      name
+      departmentId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 export const GET_POSITIONS_BY_ORG = gql`
   query GetPositionsByOrganization($organizationId: String!) {
     positionsByOrganization(organizationId: $organizationId) {

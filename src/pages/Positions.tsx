@@ -3,7 +3,6 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   GET_POSITIONS_BY_ORG,
-  GET_POSITIONS_BY_DEPARTMENT,
   CREATE_POSITION,
   DELETE_POSITION,
   UPDATE_POSITION,
@@ -134,7 +133,7 @@ const Positions = () => {
               Manage job positions in your departments
             </p>
           </div>
-          <Dialog open={open} onOpenChange={closeDialog}>
+          <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setEditingId(null); setName(""); setSelectedDeptId(""); } }}>
             <DialogTrigger asChild>
               <Button className="gold-gradient text-primary-foreground hover:opacity-90">
                 <Plus className="mr-2 h-4 w-4" /> New Position
