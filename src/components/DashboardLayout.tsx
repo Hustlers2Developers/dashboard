@@ -15,6 +15,7 @@ import {
   X,
   ChevronRight,
   Shield,
+  CalendarCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const getNavItems = (userRole?: string) => [
   { to: "/teams", label: "Teams", icon: Users },
   { to: "/departments", label: "Departments", icon: Building2 },
   { to: "/positions", label: "Positions", icon: Briefcase },
+  { to: "/attendance", label: "Attendance", icon: CalendarCheck },
   { to: "/invites", label: "Invites", icon: Mail },
   ...(userRole === "SUPER_ADMIN"
     ? [{ to: "/organizations", label: "Organizations", icon: Shield }]

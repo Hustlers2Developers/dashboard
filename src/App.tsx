@@ -16,6 +16,7 @@ import Teams from "./pages/Teams";
 import Departments from "./pages/Departments";
 import Positions from "./pages/Positions";
 import Invite from "./pages/Invite";
+import Attendance from "./pages/Attendance";
 import Organizations from "./pages/Organizations";
 import NotFound from "./pages/NotFound";
 
@@ -77,6 +78,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Positions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/attendance"
+              element={
+                <ProtectedRoute>
+                  <Attendance />
                 </ProtectedRoute>
               }
             />
