@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Shield,
   CalendarCheck,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const getNavItems = (userRole?: string) => [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/teams", label: "Teams", icon: Users },
+  { to: "/memberships", label: "Members", icon: UserCog },
   { to: "/departments", label: "Departments", icon: Building2 },
   { to: "/positions", label: "Positions", icon: Briefcase },
   { to: "/attendance", label: "Attendance", icon: CalendarCheck },
