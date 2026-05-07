@@ -36,3 +36,14 @@ export const ACCEPT_INVITE = gql`
     }
   }
 `;
+
+export const VALIDATE_INVITE = gql`
+  query ValidateInvite($token: String!) {
+    validateInvite(token: $token) {
+      email
+      organizationId
+      roleId
+      expiresAt
+    }
+  }
+`;

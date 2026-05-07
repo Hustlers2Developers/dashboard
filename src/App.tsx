@@ -20,6 +20,9 @@ import Attendance from "./pages/Attendance";
 import Organizations from "./pages/Organizations";
 import Memberships from "./pages/Memberships";
 import Users from "./pages/Users";
+import Profile from "./pages/Profile";
+import Services from "./pages/Services";
+import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -123,6 +126,23 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/services"
+              element={
+                <ProtectedRoute>
+                  <Services />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -18,6 +18,8 @@ import {
   CalendarCheck,
   UserCog,
   UserSquare2,
+  UserCircle,
+  Server,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -34,8 +36,12 @@ const getNavItems = (userRole?: string) => [
   { to: "/positions", label: "Positions", icon: Briefcase },
   { to: "/attendance", label: "Attendance", icon: CalendarCheck },
   { to: "/invites", label: "Invites", icon: Mail },
+  { to: "/profile", label: "My Profile", icon: UserCircle },
   ...(userRole === "SUPER_ADMIN"
-    ? [{ to: "/organizations", label: "Organizations", icon: Shield }]
+    ? [
+        { to: "/organizations", label: "Organizations", icon: Shield },
+        { to: "/services", label: "Services", icon: Server },
+      ]
     : []),
 ];
 
