@@ -156,6 +156,11 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
   // Don't retry if we already retried this operation
   if (operation.getContext().retried) return;
 
+  // No refresh token means user isn't logged in — let the error propagate
+  // so login/register pages can show proper error messages
+  const { refreshToken } = useAuthStore.getState();
+  if (!refreshToken) return;
+
   return from(getRefreshPromise()).pipe(
     switchMap((newToken: string) => {
       operation.setContext(({ headers = {} }: { headers: Record<string, string> }) => ({
