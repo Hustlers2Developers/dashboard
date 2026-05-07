@@ -1,19 +1,81 @@
 import { ApolloClient, InMemoryCache, createHttpLink, ApolloLink, CombinedGraphQLErrors } from '@apollo/client/core';
 import { setContext } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
-import { from, switchMap, of } from 'rxjs';
+import { from, switchMap } from 'rxjs';
 import { useAuthStore } from '@/stores/auth-store';
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.online/graphql';
 
-const TOKEN_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
+const REFRESH_BEFORE_EXPIRY_MS = 60 * 1000;
+const FALLBACK_REFRESH_DELAY_MS = 10 * 60 * 1000;
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Prevent concurrent refresh calls — queue pending resolvers
 let isRefreshing = false;
-let pendingResolvers: Array<(token: string) => void> = [];
+let pendingResolvers: Array<{ resolve: (token: string) => void; reject: (error: unknown) => void }> = [];
 
 const httpLink = createHttpLink({ uri: GRAPHQL_URL });
+
+type RefreshResponse = {
+  data?: { refreshTokens?: { accessToken?: string; refreshToken?: string } };
+  errors?: Array<{ message?: string; extensions?: { code?: string } }>;
+};
+
+function clearAuthAndRedirect() {
+  useAuthStore.getState().logout();
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
+function getTokenExpiresInMs(token: string): number {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { exp?: number };
+    return payload.exp ? payload.exp * 1000 - Date.now() : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function requestTokenRefresh(accessToken: string | null, refreshToken: string): Promise<RefreshResponse> {
+  const headersList = [
+    { authorization: `Bearer ${refreshToken}`, 'x-refresh-token': refreshToken },
+    { authorization: `Bearer ${accessToken || refreshToken}`, 'x-refresh-token': refreshToken },
+    { authorization: `Bearer ${accessToken || refreshToken}` },
+  ];
+
+  let lastResult: RefreshResponse | null = null;
+
+  for (const headers of headersList) {
+    const response = await fetch(GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify({
+        query: `
+          mutation RefreshTokens {
+            refreshTokens {
+              accessToken
+              refreshToken
+            }
+          }
+        `,
+      }),
+    });
+
+    const result = (await response.json()) as RefreshResponse;
+    if (result.data?.refreshTokens?.accessToken && result.data.refreshTokens.refreshToken) return result;
+
+    lastResult = result;
+    const code = result.errors?.[0]?.extensions?.code;
+    const message = result.errors?.[0]?.message?.toLowerCase() ?? '';
+    if (code !== 'FORBIDDEN' && !message.includes('access denied')) break;
+  }
+
+  throw new Error(lastResult?.errors?.[0]?.message || 'Unable to refresh session');
+}
 
 const authLink = setContext((_, { headers }) => {
   const { accessToken } = useAuthStore.getState();
@@ -26,37 +88,14 @@ const authLink = setContext((_, { headers }) => {
 });
 
 export async function refreshAccessToken(): Promise<string> {
-  const { refreshToken } = useAuthStore.getState();
+  const { accessToken, refreshToken } = useAuthStore.getState();
 
   if (!refreshToken) {
-    useAuthStore.getState().logout();
-    window.location.href = '/login';
+    clearAuthAndRedirect();
     throw new Error('No refresh token available');
   }
 
-  const response = await fetch(GRAPHQL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      authorization: `Bearer ${refreshToken}`,
-    },
-    body: JSON.stringify({
-      query: `
-        mutation RefreshTokens {
-          refreshTokens {
-            accessToken
-            refreshToken
-          }
-        }
-      `,
-    }),
-  });
-
-  const result = await response.json();
-
-  if (result.errors) {
-    throw new Error(result.errors[0].message);
-  }
+  const result = await requestTokenRefresh(accessToken, refreshToken);
 
   const newTokens = result.data?.refreshTokens;
   if (newTokens?.accessToken && newTokens?.refreshToken) {
@@ -71,21 +110,21 @@ export async function refreshAccessToken(): Promise<string> {
 // Concurrent requests queue here and all get the same new token.
 function getRefreshPromise(): Promise<string> {
   if (isRefreshing) {
-    return new Promise<string>((resolve) => pendingResolvers.push(resolve));
+    return new Promise<string>((resolve, reject) => pendingResolvers.push({ resolve, reject }));
   }
 
   isRefreshing = true;
 
   return refreshAccessToken()
     .then((token) => {
-      pendingResolvers.forEach((resolve) => resolve(token));
+      pendingResolvers.forEach(({ resolve }) => resolve(token));
       pendingResolvers = [];
       return token;
     })
     .catch((error) => {
+      pendingResolvers.forEach(({ reject }) => reject(error));
       pendingResolvers = [];
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+      clearAuthAndRedirect();
       throw error;
     })
     .finally(() => {
@@ -129,9 +168,15 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
 });
 
 export function startTokenRefreshTimer() {
-  if (refreshTimer) clearInterval(refreshTimer);
+  if (refreshTimer) clearTimeout(refreshTimer);
 
-  refreshTimer = setInterval(async () => {
+  const { accessToken, refreshToken } = useAuthStore.getState();
+  if (!accessToken || !refreshToken) return;
+
+  const expiresInMs = getTokenExpiresInMs(accessToken);
+  const refreshInMs = Math.max(expiresInMs - REFRESH_BEFORE_EXPIRY_MS, 0) || FALLBACK_REFRESH_DELAY_MS;
+
+  refreshTimer = setTimeout(async () => {
     const { accessToken, refreshToken } = useAuthStore.getState();
     if (accessToken && refreshToken) {
       try {
@@ -140,14 +185,20 @@ export function startTokenRefreshTimer() {
         // logout + redirect already handled inside refreshAccessToken
       }
     }
-  }, TOKEN_REFRESH_INTERVAL);
+  }, refreshInMs);
 }
 
 export function stopTokenRefreshTimer() {
   if (refreshTimer) {
-    clearInterval(refreshTimer);
+    clearTimeout(refreshTimer);
     refreshTimer = null;
   }
+}
+
+export function shouldRefreshAccessToken(): boolean {
+  const { accessToken, refreshToken } = useAuthStore.getState();
+  if (!accessToken || !refreshToken) return false;
+  return getTokenExpiresInMs(accessToken) <= REFRESH_BEFORE_EXPIRY_MS;
 }
 
 export const apolloClient = new ApolloClient({
