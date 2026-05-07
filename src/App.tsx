@@ -19,6 +19,7 @@ import Invite from "./pages/Invite";
 import Attendance from "./pages/Attendance";
 import Organizations from "./pages/Organizations";
 import Memberships from "./pages/Memberships";
+import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -103,6 +104,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Memberships />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute>
+                  <Users />
                 </ProtectedRoute>
               }
             />
