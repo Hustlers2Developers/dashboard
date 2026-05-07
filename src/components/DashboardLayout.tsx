@@ -17,6 +17,7 @@ import {
   Shield,
   CalendarCheck,
   UserCog,
+  UserSquare2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,9 @@ const getNavItems = (userRole?: string) => [
   { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/teams", label: "Teams", icon: Users },
   { to: "/memberships", label: "Members", icon: UserCog },
+  ...(userRole === "SUPER_ADMIN"
+    ? [{ to: "/users", label: "Users", icon: UserSquare2 }]
+    : []),
   { to: "/departments", label: "Departments", icon: Building2 },
   { to: "/positions", label: "Positions", icon: Briefcase },
   { to: "/attendance", label: "Attendance", icon: CalendarCheck },
