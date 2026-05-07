@@ -21,6 +21,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Trash2, Building2, Pencil } from "lucide-react";
 
@@ -30,6 +40,7 @@ const Departments = () => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
 
   const { data, loading, refetch } = useQuery<
     { departmentsByOrganization: Department[] },
@@ -74,11 +85,12 @@ const Departments = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this department?")) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteDepartment({ variables: { id } });
+      await deleteDepartment({ variables: { id: deleteTarget.id } });
       toast.success("Department deleted");
+      setDeleteTarget(null);
       refetch();
     } catch (err: unknown) {
       const message =
@@ -203,7 +215,7 @@ const Departments = () => {
                       variant="ghost"
                       size="icon"
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(dept.id)}
+                      onClick={() => setDeleteTarget(dept)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -214,6 +226,25 @@ const Departments = () => {
           </div>
         )}
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete department?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteTarget?.name}</strong> permanently delete ho jayega. Agar is department mein positions hain toh pehle unhe delete karna hoga.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

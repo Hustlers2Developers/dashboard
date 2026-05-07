@@ -22,6 +22,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Trash2, Briefcase, Pencil } from "lucide-react";
@@ -33,6 +43,7 @@ const Positions = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [selectedDeptId, setSelectedDeptId] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Position | null>(null);
 
   const { data: deptData, loading: deptLoading } = useQuery<
     { departmentsByOrganization: Department[] },
@@ -96,11 +107,12 @@ const Positions = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this position?")) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deletePosition({ variables: { id } });
+      await deletePosition({ variables: { id: deleteTarget.id } });
       toast.success("Position deleted");
+      setDeleteTarget(null);
       refetch();
     } catch (err: unknown) {
       const message =
@@ -240,7 +252,7 @@ const Positions = () => {
                       variant="ghost"
                       size="icon"
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(pos.id)}
+                      onClick={() => setDeleteTarget(pos)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -260,6 +272,25 @@ const Positions = () => {
           </div>
         )}
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete position?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteTarget?.name}</strong> permanently delete ho jayegi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

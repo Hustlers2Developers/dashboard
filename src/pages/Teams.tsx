@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -8,6 +8,7 @@ import {
   DELETE_TEAM,
   GET_TEAM_MEMBERS,
 } from "@/graphql/mutations/teams";
+import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { Team, TeamMember } from "@/graphql/graphql";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   Plus,
@@ -33,13 +44,20 @@ import {
   Mail,
 } from "lucide-react";
 
-const TeamMembersList = ({ teamId }: { teamId: string }) => {
+type AppUser = { id: string; name?: string | null; email: string };
+
+const TeamMembersList = ({
+  teamId,
+  usersMap,
+}: {
+  teamId: string;
+  usersMap: Map<string, AppUser>;
+}) => {
   const { data, loading } = useQuery<
     { teamMembersByTeam: TeamMember[] },
     { teamId: string }
-  >(GET_TEAM_MEMBERS, {
-    variables: { teamId },
-  });
+  >(GET_TEAM_MEMBERS, { variables: { teamId } });
+
   const members = data?.teamMembersByTeam || [];
 
   if (loading) return <Skeleton className="h-8 w-full" />;
@@ -48,17 +66,37 @@ const TeamMembersList = ({ teamId }: { teamId: string }) => {
 
   return (
     <div className="space-y-2">
-      {members.map((m: TeamMember) => (
-        <div
-          key={m.id}
-          className="flex items-center justify-between rounded-md bg-background p-2"
-        >
-          <span className="text-sm text-foreground">{m.userId}</span>
-          <Badge variant="secondary" className="text-xs">
-            {m.role}
-          </Badge>
-        </div>
-      ))}
+      {members.map((m: TeamMember) => {
+        const user = usersMap.get(m.userId);
+        const display = user?.name || user?.email || m.userId;
+        const initials = display
+          .split(/[\s@.]+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((p: string) => p[0]?.toUpperCase())
+          .join("");
+        return (
+          <div
+            key={m.id}
+            className="flex items-center justify-between rounded-md bg-background p-2"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {initials}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">{display}</p>
+                {user?.name && user.email && (
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                )}
+              </div>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {m.role}
+            </Badge>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -69,6 +107,7 @@ const Teams = () => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
 
   const { data, loading, refetch } = useQuery<
     { teamsByOrganization: Team[] },
@@ -77,6 +116,17 @@ const Teams = () => {
     variables: { organizationId: orgId },
     skip: !orgId,
   });
+
+  const { data: usersData } = useQuery<{ getAllUsers: AppUser[] }>(
+    GET_ALL_USERS,
+    { skip: !orgId, fetchPolicy: "cache-and-network" },
+  );
+
+  const usersMap = useMemo(() => {
+    const map = new Map<string, AppUser>();
+    (usersData?.getAllUsers ?? []).forEach((u) => map.set(u.id, u));
+    return map;
+  }, [usersData]);
 
   const [createTeam, { loading: creating }] = useMutation(CREATE_TEAM);
   const [deleteTeam] = useMutation(DELETE_TEAM);
@@ -101,11 +151,12 @@ const Teams = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this team? This will remove all members.")) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteTeam({ variables: { id } });
+      await deleteTeam({ variables: { id: deleteTarget.id } });
       toast.success("Team deleted");
+      setDeleteTarget(null);
       refetch();
     } catch (err: unknown) {
       const message =
@@ -230,7 +281,7 @@ const Teams = () => {
                       variant="ghost"
                       size="icon"
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(team.id)}
+                      onClick={() => setDeleteTarget(team)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -241,7 +292,7 @@ const Teams = () => {
                     <h5 className="mb-2 text-sm font-medium text-foreground">
                       Members
                     </h5>
-                    <TeamMembersList teamId={team.id} />
+                    <TeamMembersList teamId={team.id} usersMap={usersMap} />
                   </CardContent>
                 )}
               </Card>
@@ -249,6 +300,25 @@ const Teams = () => {
           </div>
         )}
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete team?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteTarget?.name}</strong> aur uske saare members remove ho jayenge. Yeh action undo nahi ho sakta.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

@@ -132,7 +132,11 @@
   }
 
   .gold-gradient:hover {
-    @apply opacity-90;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--gold) / 0.88) 0%,
+      hsl(var(--saffron) / 0.88) 100%
+    );
   }
 
   .gold-gradient:active {

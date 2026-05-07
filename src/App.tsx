@@ -23,6 +23,8 @@ import Users from "./pages/Users";
 import Profile from "./pages/Profile";
 import Services from "./pages/Services";
 import AcceptInvite from "./pages/AcceptInvite";
+import Apply from "./pages/Apply";
+import GuestApplications from "./pages/GuestApplications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -143,6 +145,15 @@ const App = () => (
               }
             />
             <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/apply" element={<Apply />} />
+            <Route
+              path="/applications"
+              element={
+                <ProtectedRoute>
+                  <GuestApplications />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

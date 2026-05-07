@@ -26,6 +26,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -106,6 +116,7 @@ const Memberships = () => {
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [editingMembership, setEditingMembership] = useState<MembershipRecord | null>(null);
   const [editingRoleId, setEditingRoleId] = useState("");
+  const [removeTarget, setRemoveTarget] = useState<MembershipRecord | null>(null);
 
   useEffect(() => {
     if (!selectedOrgId && defaultOrgId) {
@@ -172,6 +183,16 @@ const Memberships = () => {
   );
   const roles = useMemo(() => rolesData?.orgRoles ?? [], [rolesData]);
   const users = useMemo(() => usersData?.getAllUsers ?? [], [usersData]);
+
+  const alreadyMemberIds = useMemo(
+    () => new Set(memberships.filter((m) => m.isActive).map((m) => m.userId)),
+    [memberships],
+  );
+
+  const availableUsers = useMemo(
+    () => users.filter((u) => !alreadyMemberIds.has(u.id)),
+    [users, alreadyMemberIds],
+  );
 
   const usersById = useMemo(
     () =>
@@ -283,24 +304,20 @@ const Memberships = () => {
     }
   };
 
-  const handleRemoveMember = async (membership: MembershipRecord) => {
-    const member = usersById[membership.userId];
-    const confirmed = confirm(
-      `Remove ${member?.name || member?.email || membership.userId} from this organization?`,
-    );
-    if (!confirmed) return;
-
+  const handleRemoveMember = async () => {
+    if (!removeTarget) return;
     try {
       await removeMember({
         variables: {
           input: {
-            userId: membership.userId,
-            organizationId: membership.organizationId,
+            userId: removeTarget.userId,
+            organizationId: removeTarget.organizationId,
           },
         },
       });
 
       toast.success("Member removed successfully.");
+      setRemoveTarget(null);
       refetchMemberships();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to remove member.");
@@ -380,11 +397,17 @@ const Memberships = () => {
                           <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select user"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {users.map((appUser) => (
-                            <SelectItem key={appUser.id} value={appUser.id}>
-                              {appUser.name ? `${appUser.name} (${appUser.email})` : appUser.email}
-                            </SelectItem>
-                          ))}
+                          {availableUsers.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              All platform users are already members.
+                            </div>
+                          ) : (
+                            availableUsers.map((appUser) => (
+                              <SelectItem key={appUser.id} value={appUser.id}>
+                                {appUser.name ? `${appUser.name} (${appUser.email})` : appUser.email}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -578,7 +601,7 @@ const Memberships = () => {
                                 variant="ghost"
                                 size="sm"
                                 className="text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveMember(membership)}
+                                onClick={() => setRemoveTarget(membership)}
                                 disabled={removingMember}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -684,6 +707,25 @@ const Memberships = () => {
           </DialogContent>
         </Dialog>
       </div>
+      <AlertDialog open={!!removeTarget} onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{removeTarget ? (usersById[removeTarget.userId]?.name || usersById[removeTarget.userId]?.email || removeTarget.userId) : ""}</strong> ko is organization se remove kar diya jayega.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleRemoveMember()}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

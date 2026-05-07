@@ -21,6 +21,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Trash2, Building, Pencil } from "lucide-react";
 
@@ -29,6 +39,7 @@ const Organizations = () => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
 
   const { data, loading, refetch } = useQuery<{
     organizations?: Organization[];
@@ -90,16 +101,12 @@ const Organizations = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (
-      !confirm(
-        "Delete this organization? This will remove all associated data.",
-      )
-    )
-      return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteOrganization({ variables: { id } });
+      await deleteOrganization({ variables: { id: deleteTarget.id } });
       toast.success("Organization deleted");
+      setDeleteTarget(null);
       refetch();
     } catch (err: unknown) {
       const message =
@@ -222,7 +229,7 @@ const Organizations = () => {
                       variant="ghost"
                       size="icon"
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(org.id)}
+                      onClick={() => setDeleteTarget(org)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -233,6 +240,25 @@ const Organizations = () => {
           </div>
         )}
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete organization?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteTarget?.name}</strong> aur uska saara associated data permanently delete ho jayega.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

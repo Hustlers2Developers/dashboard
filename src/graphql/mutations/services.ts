@@ -21,7 +21,7 @@ export const GET_SERVICES = gql`
 `;
 
 export const GET_SERVICE = gql`
-  query Service($id: String!) {
+  query Service($id: ID!) {
     service(id: $id) {
       id
       name
@@ -54,7 +54,7 @@ export const CREATE_SERVICE = gql`
 `;
 
 export const UPDATE_SERVICE = gql`
-  mutation UpdateService($id: String!, $input: UpdateServiceInput!) {
+  mutation UpdateService($id: ID!, $input: UpdateServiceInput!) {
     updateService(id: $id, input: $input) {
       id
       name
@@ -66,13 +66,13 @@ export const UPDATE_SERVICE = gql`
 `;
 
 export const DELETE_SERVICE = gql`
-  mutation DeleteService($id: String!) {
+  mutation DeleteService($id: ID!) {
     deleteService(id: $id)
   }
 `;
 
 export const REGENERATE_API_KEY = gql`
-  mutation RegenerateServiceApiKey($id: String!) {
+  mutation RegenerateServiceApiKey($id: ID!) {
     regenerateServiceApiKey(id: $id) {
       id
       name

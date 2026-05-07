@@ -29,6 +29,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Trash2, ListTodo } from "lucide-react";
 
@@ -52,6 +62,7 @@ const ProjectDetail = () => {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
 
   const { data, loading, refetch } = useQuery<
     { tasksByProject: Task[] },
@@ -97,10 +108,12 @@ const ProjectDetail = () => {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteTask({ variables: { id: taskId } });
+      await deleteTask({ variables: { id: deleteTarget.id } });
       toast.success("Task deleted");
+      setDeleteTarget(null);
       refetch();
     } catch (err: unknown) {
       const message =
@@ -202,7 +215,7 @@ const ProjectDetail = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                                onClick={() => handleDeleteTask(task.id)}
+                                onClick={() => setDeleteTarget(task)}
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -256,6 +269,25 @@ const ProjectDetail = () => {
           </Card>
         )}
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteTarget?.title}</strong> permanently delete ho jayega.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleDeleteTask()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { apolloClient } from "@/lib/graphql-client";
 import { VALIDATE_INVITE, ACCEPT_INVITE } from "@/graphql/mutations/invites";
+import { GUEST_APPLICATION_BY_INVITE_TOKEN } from "@/graphql/mutations/guest-applications";
 import { CURRENT_USER_QUERY } from "@/graphql/mutations/auth";
 import { startTokenRefreshTimer } from "@/lib/graphql-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,13 +37,27 @@ const AcceptInvite = () => {
     fetchPolicy: "network-only",
   });
 
+  const { data: prefillData } = useQuery<{
+    guestApplicationByInviteToken?: { name?: string; githubUsername?: string; portfolioUrl?: string } | null;
+  }>(GUEST_APPLICATION_BY_INVITE_TOKEN, {
+    variables: { token },
+    skip: !token,
+    fetchPolicy: "network-only",
+  });
+
   const [acceptInvite] = useMutation(ACCEPT_INVITE);
 
   const invite = data?.validateInvite;
 
   useEffect(() => {
-    if (invite?.email) setForm((p) => ({ ...p }));
-  }, [invite]);
+    if (invite?.email || prefillData?.guestApplicationByInviteToken) {
+      const prefill = prefillData?.guestApplicationByInviteToken;
+      setForm((p) => ({
+        ...p,
+        name: prefill?.name || p.name,
+      }));
+    }
+  }, [invite, prefillData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
