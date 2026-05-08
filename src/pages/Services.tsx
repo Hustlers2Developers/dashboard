@@ -212,7 +212,7 @@ const Services = () => {
     );
   }
 
-  const ServiceForm = ({ onSubmit, submitting }: { onSubmit: (e: React.FormEvent) => Promise<void>; submitting: boolean }) => (
+  const renderServiceForm = (onSubmit: (e: React.FormEvent) => Promise<void>, submitting: boolean) => (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
