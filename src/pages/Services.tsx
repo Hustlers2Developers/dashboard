@@ -380,7 +380,7 @@ const Services = () => {
               <DialogTitle>New Internal Service</DialogTitle>
               <DialogDescription>Register a service that connects to this platform.</DialogDescription>
             </DialogHeader>
-            <ServiceForm onSubmit={handleCreate} submitting={creating} />
+            {renderServiceForm(handleCreate, creating)}
           </DialogContent>
         </Dialog>
 
@@ -391,7 +391,7 @@ const Services = () => {
               <DialogTitle>Edit Service</DialogTitle>
               <DialogDescription>Update details for {editService?.name}.</DialogDescription>
             </DialogHeader>
-            <ServiceForm onSubmit={handleUpdate} submitting={updating} />
+            {renderServiceForm(handleUpdate, updating)}
           </DialogContent>
         </Dialog>
 
