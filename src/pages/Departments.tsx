@@ -144,17 +144,14 @@ const Departments = () => {
                     required
                   />
                 </div>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
-                  disabled={creating || updating}
+                  loading={creating || updating}
+                  loadingText="Saving..."
                 >
-                  {creating || updating
-                    ? "Saving..."
-                    : editingId
-                      ? "Update Department"
-                      : "Create Department"}
-                </Button>
+                  {editingId ? "Update Department" : "Create Department"}
+                </LoadingButton>
               </form>
             </DialogContent>
           </Dialog>
