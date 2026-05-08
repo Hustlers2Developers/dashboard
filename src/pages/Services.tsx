@@ -250,7 +250,14 @@ const Services = () => {
       </div>
       <DialogFooter>
         <Button type="submit" className="gold-gradient text-primary-foreground" disabled={submitting}>
-          {submitting ? "Saving..." : "Save"}
+          {submitting ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </span>
+          ) : (
+            "Save"
+          )}
         </Button>
       </DialogFooter>
     </form>
