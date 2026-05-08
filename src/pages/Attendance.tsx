@@ -239,23 +239,25 @@ const Attendance = () => {
 
           {/* Check-in / Check-out buttons */}
           <div className="flex gap-2">
-            <Button
+            <LoadingButton
               onClick={handleCheckIn}
-              disabled={checkingIn}
+              loading={checkingIn}
+              loadingText="Checking in..."
               className="gold-gradient text-primary-foreground gap-2"
             >
               <LogIn className="h-4 w-4" />
-              {checkingIn ? "Checking in..." : "Check In"}
-            </Button>
-            <Button
+              Check In
+            </LoadingButton>
+            <LoadingButton
               variant="outline"
               onClick={handleCheckOut}
-              disabled={checkingOut}
+              loading={checkingOut}
+              loadingText="Checking out..."
               className="gap-2"
             >
               <LogOut className="h-4 w-4" />
-              {checkingOut ? "Checking out..." : "Check Out"}
-            </Button>
+              Check Out
+            </LoadingButton>
           </div>
         </div>
 
