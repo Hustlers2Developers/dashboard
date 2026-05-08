@@ -180,9 +180,9 @@ const Profile = () => {
                 ) : (
                   <div className="flex gap-2">
                     <Button type="button" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
-                    <Button type="submit" className="gold-gradient text-primary-foreground" disabled={saving}>
-                      {saving ? "Saving..." : "Save"}
-                    </Button>
+                    <LoadingButton type="submit" className="gold-gradient text-primary-foreground" loading={saving} loadingText="Saving...">
+                      Save
+                    </LoadingButton>
                   </div>
                 )}
               </CardHeader>
