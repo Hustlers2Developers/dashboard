@@ -638,13 +638,14 @@ const Attendance = () => {
                       ))}
                     </div>
 
-                    <Button
+                    <LoadingButton
                       onClick={handleBulkSubmit}
-                      disabled={bulkLoading}
+                      loading={bulkLoading}
+                      loadingText="Marking..."
                       className="gold-gradient text-primary-foreground w-full"
                     >
-                      {bulkLoading ? "Marking..." : "Submit Bulk Attendance"}
-                    </Button>
+                      Submit Bulk Attendance
+                    </LoadingButton>
                   </>
                 )}
               </CardContent>
