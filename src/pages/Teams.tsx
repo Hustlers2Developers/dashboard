@@ -205,13 +205,14 @@ const Teams = () => {
                       required
                     />
                   </div>
-                  <Button
+                  <LoadingButton
                     type="submit"
                     className="w-full gold-gradient text-primary-foreground"
-                    disabled={creating}
+                    loading={creating}
+                    loadingText="Creating..."
                   >
-                    {creating ? "Creating..." : "Create Team"}
-                  </Button>
+                    Create Team
+                  </LoadingButton>
                 </form>
               </DialogContent>
             </Dialog>
