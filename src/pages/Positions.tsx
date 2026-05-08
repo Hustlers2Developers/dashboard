@@ -185,17 +185,15 @@ const Positions = () => {
                     required
                   />
                 </div>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
-                  disabled={creating || updating || deptLoading}
+                  loading={creating || updating}
+                  loadingText="Saving..."
+                  disabled={deptLoading}
                 >
-                  {creating || updating
-                    ? "Saving..."
-                    : editingId
-                      ? "Update Position"
-                      : "Create Position"}
-                </Button>
+                  {editingId ? "Update Position" : "Create Position"}
+                </LoadingButton>
               </form>
             </DialogContent>
           </Dialog>
