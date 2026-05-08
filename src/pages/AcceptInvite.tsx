@@ -190,13 +190,14 @@ const AcceptInvite = () => {
                 />
               </div>
 
-              <Button
+              <LoadingButton
                 type="submit"
                 className="w-full gold-gradient text-primary-foreground"
-                disabled={submitting}
+                loading={submitting}
+                loadingText="Creating account..."
               >
-                {submitting ? "Creating account..." : "Create account & join"}
-              </Button>
+                Create account & join
+              </LoadingButton>
 
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
