@@ -162,17 +162,14 @@ const Organizations = () => {
                     required
                   />
                 </div>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
-                  disabled={creating || updating}
+                  loading={creating || updating}
+                  loadingText="Saving..."
                 >
-                  {creating || updating
-                    ? "Saving..."
-                    : editingId
-                      ? "Update Organization"
-                      : "Create Organization"}
-                </Button>
+                  {editingId ? "Update Organization" : "Create Organization"}
+                </LoadingButton>
               </form>
             </DialogContent>
           </Dialog>
