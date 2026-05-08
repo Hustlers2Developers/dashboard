@@ -163,13 +163,14 @@ const ProjectDetail = () => {
                     placeholder="Brief description..."
                   />
                 </div>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
-                  disabled={creating}
+                  loading={creating}
+                  loadingText="Creating..."
                 >
-                  {creating ? "Creating..." : "Create Task"}
-                </Button>
+                  Create Task
+                </LoadingButton>
               </form>
             </DialogContent>
           </Dialog>
