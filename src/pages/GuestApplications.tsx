@@ -11,6 +11,7 @@ import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
 import { GET_ORG_ROLES } from "@/graphql/mutations/memberships";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
