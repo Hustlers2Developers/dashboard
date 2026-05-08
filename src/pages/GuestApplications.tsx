@@ -383,9 +383,9 @@ const GuestApplications = () => {
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setApproveApp(null)}>Cancel</Button>
-                <Button type="submit" className="gold-gradient text-primary-foreground" disabled={approving || !approveOrgId}>
-                  {approving ? "Approving..." : "Approve & Send Invite"}
-                </Button>
+                <LoadingButton type="submit" className="gold-gradient text-primary-foreground" loading={approving} loadingText="Approving..." disabled={!approveOrgId}>
+                  Approve & Send Invite
+                </LoadingButton>
               </DialogFooter>
             </form>
           </DialogContent>
