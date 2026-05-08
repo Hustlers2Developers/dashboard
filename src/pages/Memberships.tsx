@@ -724,9 +724,17 @@ const Memberships = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => void handleRemoveMember()}
+              onClick={(e) => { e.preventDefault(); void handleRemoveMember(); }}
+              disabled={removingMember}
             >
-              Remove
+              {removingMember ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Removing...
+                </span>
+              ) : (
+                "Remove"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
