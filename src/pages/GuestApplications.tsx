@@ -404,10 +404,17 @@ const GuestApplications = () => {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => void handleReject()}
+                onClick={(e) => { e.preventDefault(); void handleReject(); }}
                 disabled={rejecting}
               >
-                {rejecting ? "Rejecting..." : "Reject"}
+                {rejecting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Rejecting...
+                  </span>
+                ) : (
+                  "Reject"
+                )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
