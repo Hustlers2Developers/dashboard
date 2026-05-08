@@ -212,7 +212,7 @@ const Services = () => {
     );
   }
 
-  const ServiceForm = ({ onSubmit, submitting }: { onSubmit: (e: React.FormEvent) => Promise<void>; submitting: boolean }) => (
+  const renderServiceForm = (onSubmit: (e: React.FormEvent) => Promise<void>, submitting: boolean) => (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -380,7 +380,7 @@ const Services = () => {
               <DialogTitle>New Internal Service</DialogTitle>
               <DialogDescription>Register a service that connects to this platform.</DialogDescription>
             </DialogHeader>
-            <ServiceForm onSubmit={handleCreate} submitting={creating} />
+            {renderServiceForm(handleCreate, creating)}
           </DialogContent>
         </Dialog>
 
@@ -391,7 +391,7 @@ const Services = () => {
               <DialogTitle>Edit Service</DialogTitle>
               <DialogDescription>Update details for {editService?.name}.</DialogDescription>
             </DialogHeader>
-            <ServiceForm onSubmit={handleUpdate} submitting={updating} />
+            {renderServiceForm(handleUpdate, updating)}
           </DialogContent>
         </Dialog>
 
