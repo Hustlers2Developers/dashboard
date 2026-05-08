@@ -34,7 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { AlertCircle, Copy, Eye, EyeOff, KeyRound, Pencil, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
+import { AlertCircle, Copy, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
 
 type Service = {
   id: string;
@@ -250,7 +250,14 @@ const Services = () => {
       </div>
       <DialogFooter>
         <Button type="submit" className="gold-gradient text-primary-foreground" disabled={submitting}>
-          {submitting ? "Saving..." : "Save"}
+          {submitting ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </span>
+          ) : (
+            "Save"
+          )}
         </Button>
       </DialogFooter>
     </form>
@@ -411,7 +418,14 @@ const Services = () => {
                 onClick={() => void handleDelete()}
                 disabled={deleting}
               >
-                {deleting ? "Deleting..." : "Delete"}
+                {deleting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </span>
+                ) : (
+                  "Delete"
+                )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
