@@ -34,7 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { AlertCircle, Copy, Eye, EyeOff, KeyRound, Pencil, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
+import { AlertCircle, Copy, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
 
 type Service = {
   id: string;
