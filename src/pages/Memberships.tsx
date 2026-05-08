@@ -14,6 +14,7 @@ import {
 import { Organization } from "@/graphql/graphql";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +60,7 @@ import {
   Trash2,
   UserPlus,
   Users,
+  Loader2,
 } from "lucide-react";
 
 type MembershipRecord = {
@@ -428,13 +430,15 @@ const Memberships = () => {
                       </Select>
                     </div>
 
-                    <Button
+                    <LoadingButton
                       type="submit"
                       className="w-full gold-gradient text-primary-foreground"
-                      disabled={!selectedOrgId || creatingMembership || loadingRoles || loadingUsers}
+                      loading={creatingMembership}
+                      loadingText="Adding member..."
+                      disabled={!selectedOrgId || loadingRoles || loadingUsers}
                     >
-                      {creatingMembership ? "Adding member..." : "Add Member"}
-                    </Button>
+                      Add Member
+                    </LoadingButton>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -696,13 +700,15 @@ const Memberships = () => {
                 </Select>
               </div>
 
-              <Button
+              <LoadingButton
                 type="submit"
                 className="w-full gold-gradient text-primary-foreground"
-                disabled={updatingRole || !editingMembership || !editingRoleId}
+                loading={updatingRole}
+                loadingText="Updating role..."
+                disabled={!editingMembership || !editingRoleId}
               >
-                {updatingRole ? "Updating role..." : "Save Role"}
-              </Button>
+                Save Role
+              </LoadingButton>
             </form>
           </DialogContent>
         </Dialog>
@@ -719,9 +725,17 @@ const Memberships = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => void handleRemoveMember()}
+              onClick={(e) => { e.preventDefault(); void handleRemoveMember(); }}
+              disabled={removingMember}
             >
-              Remove
+              {removingMember ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Removing...
+                </span>
+              ) : (
+                "Remove"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

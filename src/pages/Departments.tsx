@@ -11,6 +11,7 @@ import { Department } from "@/graphql/graphql";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -143,17 +144,14 @@ const Departments = () => {
                     required
                   />
                 </div>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
-                  disabled={creating || updating}
+                  loading={creating || updating}
+                  loadingText="Saving..."
                 >
-                  {creating || updating
-                    ? "Saving..."
-                    : editingId
-                      ? "Update Department"
-                      : "Create Department"}
-                </Button>
+                  {editingId ? "Update Department" : "Create Department"}
+                </LoadingButton>
               </form>
             </DialogContent>
           </Dialog>

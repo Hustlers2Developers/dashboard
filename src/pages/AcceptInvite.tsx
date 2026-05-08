@@ -9,6 +9,7 @@ import { CURRENT_USER_QUERY } from "@/graphql/mutations/auth";
 import { startTokenRefreshTimer } from "@/lib/graphql-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -189,13 +190,14 @@ const AcceptInvite = () => {
                 />
               </div>
 
-              <Button
+              <LoadingButton
                 type="submit"
                 className="w-full gold-gradient text-primary-foreground"
-                disabled={submitting}
+                loading={submitting}
+                loadingText="Creating account..."
               >
-                {submitting ? "Creating account..." : "Create account & join"}
-              </Button>
+                Create account & join
+              </LoadingButton>
 
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}

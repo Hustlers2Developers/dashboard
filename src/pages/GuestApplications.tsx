@@ -11,6 +11,7 @@ import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
 import { GET_ORG_ROLES } from "@/graphql/mutations/memberships";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
@@ -55,6 +56,7 @@ import {
   Globe,
   Phone,
   XCircle,
+  Loader2,
 } from "lucide-react";
 
 type GuestApplication = {
@@ -382,9 +384,9 @@ const GuestApplications = () => {
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setApproveApp(null)}>Cancel</Button>
-                <Button type="submit" className="gold-gradient text-primary-foreground" disabled={approving || !approveOrgId}>
-                  {approving ? "Approving..." : "Approve & Send Invite"}
-                </Button>
+                <LoadingButton type="submit" className="gold-gradient text-primary-foreground" loading={approving} loadingText="Approving..." disabled={!approveOrgId}>
+                  Approve & Send Invite
+                </LoadingButton>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -403,10 +405,17 @@ const GuestApplications = () => {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => void handleReject()}
+                onClick={(e) => { e.preventDefault(); void handleReject(); }}
                 disabled={rejecting}
               >
-                {rejecting ? "Rejecting..." : "Reject"}
+                {rejecting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Rejecting...
+                  </span>
+                ) : (
+                  "Reject"
+                )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

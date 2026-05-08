@@ -11,6 +11,7 @@ import { Task } from "@/graphql/graphql";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -162,13 +163,14 @@ const ProjectDetail = () => {
                     placeholder="Brief description..."
                   />
                 </div>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
-                  disabled={creating}
+                  loading={creating}
+                  loadingText="Creating..."
                 >
-                  {creating ? "Creating..." : "Create Task"}
-                </Button>
+                  Create Task
+                </LoadingButton>
               </form>
             </DialogContent>
           </Dialog>

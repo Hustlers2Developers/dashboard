@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { MY_PROFILE, UPDATE_PROFILE } from "@/graphql/mutations/users";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -179,9 +180,9 @@ const Profile = () => {
                 ) : (
                   <div className="flex gap-2">
                     <Button type="button" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
-                    <Button type="submit" className="gold-gradient text-primary-foreground" disabled={saving}>
-                      {saving ? "Saving..." : "Save"}
-                    </Button>
+                    <LoadingButton type="submit" className="gold-gradient text-primary-foreground" loading={saving} loadingText="Saving...">
+                      Save
+                    </LoadingButton>
                   </div>
                 )}
               </CardHeader>

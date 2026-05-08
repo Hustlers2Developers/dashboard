@@ -14,6 +14,7 @@ import {
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -238,23 +239,25 @@ const Attendance = () => {
 
           {/* Check-in / Check-out buttons */}
           <div className="flex gap-2">
-            <Button
+            <LoadingButton
               onClick={handleCheckIn}
-              disabled={checkingIn}
+              loading={checkingIn}
+              loadingText="Checking in..."
               className="gold-gradient text-primary-foreground gap-2"
             >
               <LogIn className="h-4 w-4" />
-              {checkingIn ? "Checking in..." : "Check In"}
-            </Button>
-            <Button
+              Check In
+            </LoadingButton>
+            <LoadingButton
               variant="outline"
               onClick={handleCheckOut}
-              disabled={checkingOut}
+              loading={checkingOut}
+              loadingText="Checking out..."
               className="gap-2"
             >
               <LogOut className="h-4 w-4" />
-              {checkingOut ? "Checking out..." : "Check Out"}
-            </Button>
+              Check Out
+            </LoadingButton>
           </div>
         </div>
 
@@ -635,13 +638,14 @@ const Attendance = () => {
                       ))}
                     </div>
 
-                    <Button
+                    <LoadingButton
                       onClick={handleBulkSubmit}
-                      disabled={bulkLoading}
+                      loading={bulkLoading}
+                      loadingText="Marking..."
                       className="gold-gradient text-primary-foreground w-full"
                     >
-                      {bulkLoading ? "Marking..." : "Submit Bulk Attendance"}
-                    </Button>
+                      Submit Bulk Attendance
+                    </LoadingButton>
                   </>
                 )}
               </CardContent>

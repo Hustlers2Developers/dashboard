@@ -11,6 +11,7 @@ import {
 } from "@/graphql/mutations/memberships";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -497,13 +498,15 @@ const Users = () => {
                 <Button type="button" variant="outline" onClick={closeAssign}>
                   Cancel
                 </Button>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="gold-gradient text-primary-foreground"
-                  disabled={creatingMembership || !assignOrgId || !assignRoleId}
+                  loading={creatingMembership}
+                  loadingText="Adding..."
+                  disabled={!assignOrgId || !assignRoleId}
                 >
-                  {creatingMembership ? "Adding..." : "Add member"}
-                </Button>
+                  Add member
+                </LoadingButton>
               </DialogFooter>
             </form>
           </DialogContent>

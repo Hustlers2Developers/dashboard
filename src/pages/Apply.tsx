@@ -4,6 +4,7 @@ import { useMutation } from "@apollo/client/react";
 import { SUBMIT_GUEST_APPLICATION } from "@/graphql/mutations/guest-applications";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -119,9 +120,9 @@ const Apply = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full gold-gradient text-primary-foreground" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Application"}
-            </Button>
+            <LoadingButton type="submit" className="w-full gold-gradient text-primary-foreground" loading={loading} loadingText="Submitting...">
+              Submit Application
+            </LoadingButton>
 
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}

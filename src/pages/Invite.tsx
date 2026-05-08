@@ -5,6 +5,7 @@ import { CREATE_INVITE_LINK, GET_INVITES } from "@/graphql/mutations/invites";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -228,13 +229,14 @@ const Invite = () => {
                     required
                   />
                 </div>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
-                  disabled={creating}
+                  loading={creating}
+                  loadingText="Creating link..."
                 >
-                  {creating ? "Creating link..." : "Generate invite link"}
-                </Button>
+                  Generate invite link
+                </LoadingButton>
               </form>
             </CardContent>
           </Card>
