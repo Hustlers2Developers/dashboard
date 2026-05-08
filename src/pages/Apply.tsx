@@ -120,9 +120,9 @@ const Apply = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full gold-gradient text-primary-foreground" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Application"}
-            </Button>
+            <LoadingButton type="submit" className="w-full gold-gradient text-primary-foreground" loading={loading} loadingText="Submitting...">
+              Submit Application
+            </LoadingButton>
 
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
