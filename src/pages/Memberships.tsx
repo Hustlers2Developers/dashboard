@@ -699,13 +699,15 @@ const Memberships = () => {
                 </Select>
               </div>
 
-              <Button
+              <LoadingButton
                 type="submit"
                 className="w-full gold-gradient text-primary-foreground"
-                disabled={updatingRole || !editingMembership || !editingRoleId}
+                loading={updatingRole}
+                loadingText="Updating role..."
+                disabled={!editingMembership || !editingRoleId}
               >
-                {updatingRole ? "Updating role..." : "Save Role"}
-              </Button>
+                Save Role
+              </LoadingButton>
             </form>
           </DialogContent>
         </Dialog>
