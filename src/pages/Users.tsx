@@ -498,13 +498,15 @@ const Users = () => {
                 <Button type="button" variant="outline" onClick={closeAssign}>
                   Cancel
                 </Button>
-                <Button
+                <LoadingButton
                   type="submit"
                   className="gold-gradient text-primary-foreground"
-                  disabled={creatingMembership || !assignOrgId || !assignRoleId}
+                  loading={creatingMembership}
+                  loadingText="Adding..."
+                  disabled={!assignOrgId || !assignRoleId}
                 >
-                  {creatingMembership ? "Adding..." : "Add member"}
-                </Button>
+                  Add member
+                </LoadingButton>
               </DialogFooter>
             </form>
           </DialogContent>
