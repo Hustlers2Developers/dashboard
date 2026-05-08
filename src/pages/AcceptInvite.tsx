@@ -86,7 +86,7 @@ const AcceptInvite = () => {
       startTokenRefreshTimer();
 
       const userRes = await apolloClient.query({ query: CURRENT_USER_QUERY, fetchPolicy: "network-only" });
-      const userData = userRes.data as { currentUser?: { id: string; name?: string | null; email: string; systemRole: string; createdAt: string; updatedAt: string } } | undefined;
+      const userData = userRes.data as { currentUser?: { sub: string; email: string; systemRole: 'SUPER_ADMIN' | 'USER'; orgId: string; name?: string | null } } | undefined;
       if (userData?.currentUser) setUser(userData.currentUser);
 
       toast.success("Account created! Welcome.");
