@@ -429,13 +429,15 @@ const Memberships = () => {
                       </Select>
                     </div>
 
-                    <Button
+                    <LoadingButton
                       type="submit"
                       className="w-full gold-gradient text-primary-foreground"
-                      disabled={!selectedOrgId || creatingMembership || loadingRoles || loadingUsers}
+                      loading={creatingMembership}
+                      loadingText="Adding member..."
+                      disabled={!selectedOrgId || loadingRoles || loadingUsers}
                     >
-                      {creatingMembership ? "Adding member..." : "Add Member"}
-                    </Button>
+                      Add Member
+                    </LoadingButton>
                   </form>
                 </DialogContent>
               </Dialog>
