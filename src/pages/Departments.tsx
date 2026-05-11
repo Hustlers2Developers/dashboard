@@ -15,6 +15,7 @@ import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefetchOverlay } from "@/components/RefetchOverlay";
 import {
   Dialog,
   DialogContent,
@@ -49,7 +50,10 @@ const Departments = () => {
   >(GET_DEPARTMENTS_BY_ORG, {
     variables: { organizationId: orgId },
     skip: !orgId,
+    notifyOnNetworkStatusChange: true,
   });
+  const isInitialLoading = loading && !data;
+  const isRefetching = loading && !!data;
 
   const [createDepartment, { loading: creating }] =
     useMutation(CREATE_DEPARTMENT);
