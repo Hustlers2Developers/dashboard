@@ -197,6 +197,7 @@ const Organizations = () => {
             </CardContent>
           </Card>
         ) : (
+          <RefetchOverlay active={isRefetching}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {organizations.map((org: Organization) => (
               <Card
@@ -239,6 +240,7 @@ const Organizations = () => {
               </Card>
             ))}
           </div>
+          </RefetchOverlay>
         )}
       </div>
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
