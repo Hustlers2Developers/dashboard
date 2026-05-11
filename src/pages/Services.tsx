@@ -305,6 +305,7 @@ const Services = () => {
             </CardContent>
           </Card>
         ) : (
+          <RefetchOverlay active={isRefetching}>
           <div className="grid gap-4 md:grid-cols-2">
             {services.map((svc) => {
               const keyVisible = visibleKeys.has(svc.id);
@@ -382,6 +383,7 @@ const Services = () => {
               );
             })}
           </div>
+          </RefetchOverlay>
         )}
 
         {/* Create Dialog */}
