@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefetchOverlay } from "@/components/RefetchOverlay";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -105,8 +106,11 @@ const GuestApplications = () => {
     {
       variables: { status: statusFilter === "ALL" ? undefined : statusFilter },
       fetchPolicy: "cache-and-network",
+      notifyOnNetworkStatusChange: true,
     },
   );
+  const isInitialLoading = loading && !data;
+  const isRefetching = loading && !!data;
 
   const { data: orgsData } = useQuery<{ organizations?: Organization[] }>(
     GET_ALL_ORGANIZATIONS,
@@ -190,7 +194,7 @@ const GuestApplications = () => {
 
           {(["PENDING", "APPROVED", "REJECTED", "ALL"] as const).map((tab) => (
             <TabsContent key={tab} value={tab} className="mt-4">
-              {loading ? (
+              {isInitialLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
                 </div>
