@@ -219,6 +219,7 @@ const GuestApplications = () => {
                   </CardContent>
                 </Card>
               ) : (
+                <RefetchOverlay active={isRefetching}>
                 <div className="space-y-3">
                   {applications.map((app) => {
                     const cfg = statusConfig[app.status];
@@ -283,6 +284,7 @@ const GuestApplications = () => {
                     );
                   })}
                 </div>
+                </RefetchOverlay>
               )}
             </TabsContent>
           ))}
