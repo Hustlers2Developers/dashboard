@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefetchOverlay } from "@/components/RefetchOverlay";
 import {
   Dialog,
   DialogContent,
@@ -75,8 +76,11 @@ const Services = () => {
 
   const { data, loading, error, refetch } = useQuery<{ services: Service[] }>(GET_SERVICES, {
     fetchPolicy: "cache-and-network",
+    notifyOnNetworkStatusChange: true,
     skip: !isSuperAdmin,
   });
+  const isInitialLoading = loading && !data;
+  const isRefetching = loading && !!data;
 
   const [createService, { loading: creating }] = useMutation(CREATE_SERVICE);
   const [updateService, { loading: updating }] = useMutation(UPDATE_SERVICE);
@@ -281,7 +285,7 @@ const Services = () => {
           </Button>
         </div>
 
-        {loading ? (
+        {isInitialLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36 w-full rounded-xl" />)}
           </div>
@@ -301,6 +305,7 @@ const Services = () => {
             </CardContent>
           </Card>
         ) : (
+          <RefetchOverlay active={isRefetching}>
           <div className="grid gap-4 md:grid-cols-2">
             {services.map((svc) => {
               const keyVisible = visibleKeys.has(svc.id);
@@ -378,6 +383,7 @@ const Services = () => {
               );
             })}
           </div>
+          </RefetchOverlay>
         )}
 
         {/* Create Dialog */}

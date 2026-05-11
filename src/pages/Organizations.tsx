@@ -15,6 +15,7 @@ import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefetchOverlay } from "@/components/RefetchOverlay";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,9 @@ const Organizations = () => {
 
   const { data, loading, refetch } = useQuery<{
     organizations?: Organization[];
-  }>(GET_ALL_ORGANIZATIONS);
+  }>(GET_ALL_ORGANIZATIONS, { notifyOnNetworkStatusChange: true });
+  const isInitialLoading = loading && !data;
+  const isRefetching = loading && !!data;
 
   const [createOrganization, { loading: creating }] =
     useMutation(CREATE_ORGANIZATION);
@@ -175,7 +178,7 @@ const Organizations = () => {
           </Dialog>
         </div>
 
-        {loading ? (
+        {isInitialLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-32 w-full rounded-lg" />
@@ -194,6 +197,7 @@ const Organizations = () => {
             </CardContent>
           </Card>
         ) : (
+          <RefetchOverlay active={isRefetching}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {organizations.map((org: Organization) => (
               <Card
@@ -236,6 +240,7 @@ const Organizations = () => {
               </Card>
             ))}
           </div>
+          </RefetchOverlay>
         )}
       </div>
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>

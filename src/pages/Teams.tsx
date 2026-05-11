@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefetchOverlay } from "@/components/RefetchOverlay";
 import {
   Dialog,
   DialogContent,
@@ -116,7 +117,10 @@ const Teams = () => {
   >(GET_TEAMS_BY_ORG, {
     variables: { organizationId: orgId },
     skip: !orgId,
+    notifyOnNetworkStatusChange: true,
   });
+  const isInitialLoading = loading && !data;
+  const isRefetching = loading && !!data;
 
   const { data: usersData } = useQuery<{ getAllUsers: AppUser[] }>(
     GET_ALL_USERS,
@@ -219,7 +223,7 @@ const Teams = () => {
           </div>
         </div>
 
-        {loading ? (
+        {isInitialLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-40 w-full rounded-lg" />
@@ -238,6 +242,7 @@ const Teams = () => {
             </CardContent>
           </Card>
         ) : (
+          <RefetchOverlay active={isRefetching}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {teams.map((team: Team) => (
               <Card
@@ -300,6 +305,7 @@ const Teams = () => {
               </Card>
             ))}
           </div>
+          </RefetchOverlay>
         )}
       </div>
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
