@@ -156,8 +156,10 @@ const Invite = () => {
             </CardHeader>
             <CardContent>
               {loadingInvites ? (
-                <div className="py-10 text-center text-sm text-muted-foreground">
-                  Loading invites...
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                  ))}
                 </div>
               ) : invites.length === 0 ? (
                 <div className="space-y-3 py-10 text-center text-sm text-muted-foreground">
