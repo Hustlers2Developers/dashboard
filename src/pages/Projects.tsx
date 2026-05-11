@@ -144,7 +144,7 @@ const Projects = () => {
           </Dialog>
         </div>
 
-        {loading ? (
+        {isInitialLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-40 w-full rounded-lg" />
@@ -163,6 +163,7 @@ const Projects = () => {
             </CardContent>
           </Card>
         ) : (
+          <RefetchOverlay active={isRefetching}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project: Project) => (
               <Card
@@ -201,6 +202,7 @@ const Projects = () => {
               </Card>
             ))}
           </div>
+          </RefetchOverlay>
         )}
       </div>
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
