@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Mail, Copy, Check, Clock, CheckCircle2, XCircle } from "lucide-react";
 
@@ -156,8 +157,10 @@ const Invite = () => {
             </CardHeader>
             <CardContent>
               {loadingInvites ? (
-                <div className="py-10 text-center text-sm text-muted-foreground">
-                  Loading invites...
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                  ))}
                 </div>
               ) : invites.length === 0 ? (
                 <div className="space-y-3 py-10 text-center text-sm text-muted-foreground">
