@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useLazyQuery } from "@apollo/client/react";
 import { LOGIN_MUTATION, CURRENT_USER_QUERY } from "@/graphql/mutations/auth";
 import { AuthResponse, AuthUser } from "@/graphql/graphql";
