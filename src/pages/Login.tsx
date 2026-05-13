@@ -139,15 +139,23 @@ const Login = () => {
                   </span>
                 )}
               </Button>
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
-                <Link
-                  to="/register"
-                  className="font-medium text-accent hover:underline"
+              <div className="w-full rounded-xl border border-border bg-card/50 p-4 text-left">
+                <p className="text-sm font-semibold text-foreground">
+                  New to Hustlers2Developers?
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  We're an invite-based community. Apply for membership and we'll review your application.
+                </p>
+                <a
+                  href="https://apply.godevelopers.online"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
                 >
-                  Register
-                </Link>
-              </p>
+                  Apply to join
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
             </CardFooter>
           </form>
         </Card>
