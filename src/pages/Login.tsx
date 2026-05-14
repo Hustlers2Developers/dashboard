@@ -23,10 +23,17 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { setTokens, setUser } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+  const redirectTo = redirectParam && redirectParam.startsWith("/") ? redirectParam : "/dashboard";
+  const { setTokens, setUser, isAuthenticated } = useAuthStore();
 
   const [login, { loading }] = useMutation(LOGIN_MUTATION);
   const [fetchUser] = useLazyQuery(CURRENT_USER_QUERY);
+
+  if (isAuthenticated) {
+    return <Navigate to={redirectTo} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
