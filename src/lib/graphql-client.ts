@@ -21,11 +21,14 @@ type RefreshResponse = {
   errors?: Array<{ message?: string; extensions?: { code?: string } }>;
 };
 
+const PUBLIC_ROUTES = ['/login', '/apply', '/accept-invite', '/'];
+
 function clearAuthAndRedirect() {
   useAuthStore.getState().logout();
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
-  }
+  const path = window.location.pathname;
+  if (PUBLIC_ROUTES.includes(path)) return;
+  const redirect = encodeURIComponent(path + window.location.search);
+  window.location.href = `/login?redirect=${redirect}`;
 }
 
 function getTokenExpiresInMs(token: string): number {
