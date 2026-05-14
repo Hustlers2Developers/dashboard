@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useLazyQuery } from "@apollo/client/react";
 import { LOGIN_MUTATION, CURRENT_USER_QUERY } from "@/graphql/mutations/auth";
 import { AuthResponse, AuthUser } from "@/graphql/graphql";
@@ -23,10 +23,17 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { setTokens, setUser } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+  const redirectTo = redirectParam && redirectParam.startsWith("/") ? redirectParam : "/dashboard";
+  const { setTokens, setUser, isAuthenticated } = useAuthStore();
 
   const [login, { loading }] = useMutation(LOGIN_MUTATION);
   const [fetchUser] = useLazyQuery(CURRENT_USER_QUERY);
+
+  if (isAuthenticated) {
+    return <Navigate to={redirectTo} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +57,7 @@ const Login = () => {
       }
 
       toast.success("Welcome back!");
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Invalid email or password";

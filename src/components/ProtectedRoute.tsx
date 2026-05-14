@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
 import { useMutation } from '@apollo/client/react';
 import { RECORD_DAILY_VISIT } from '@/graphql/mutations/attendance';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const location = useLocation();
   const [recordDailyVisit] = useMutation(RECORD_DAILY_VISIT);
   const hasRecorded = useRef(false);
 
@@ -19,8 +20,9 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, [isAuthenticated, recordDailyVisit]);
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
 
-  return <>{children}</>;
+  return <div key={location.pathname} className="animate-fade-in">{children}</div>;
 };
