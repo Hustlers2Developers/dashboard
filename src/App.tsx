@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { apolloClient } from "@/lib/graphql-client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthEventBridge } from "@/components/AuthEventBridge";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 
@@ -36,6 +37,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthEventBridge />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
