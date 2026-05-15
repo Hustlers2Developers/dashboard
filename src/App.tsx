@@ -37,6 +37,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthEventBridge />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
