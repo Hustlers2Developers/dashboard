@@ -27,9 +27,12 @@ const PUBLIC_ROUTES = ['/login', '/apply', '/accept-invite', '/'];
 function clearAuthAndRedirect() {
   useAuthStore.getState().logout();
   const path = window.location.pathname;
-  if (PUBLIC_ROUTES.includes(path)) return;
+  if (PUBLIC_ROUTES.includes(path)) {
+    emitAuthEvent({ type: 'session-expired' });
+    return;
+  }
   const redirect = encodeURIComponent(path + window.location.search);
-  window.location.href = `/login?redirect=${redirect}`;
+  emitAuthEvent({ type: 'logout-redirect', redirectTo: `/login?redirect=${redirect}` });
 }
 
 function getTokenExpiresInMs(token: string): number {
