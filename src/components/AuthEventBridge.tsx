@@ -1,21 +1,33 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { onAuthEvent } from '@/lib/auth-events';
+import { RedirectLoader } from '@/components/RedirectLoader';
 
 /**
  * Bridges non-React auth events (from graphql-client / token timer) into
  * react-router navigation, avoiding full page reloads when sessions expire.
+ * Shows a transient loading overlay during the redirect to prevent flashes.
  */
 export const AuthEventBridge = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [redirecting, setRedirecting] = useState<string | null>(null);
 
   useEffect(() => {
     return onAuthEvent((event) => {
       if (event.type === 'logout-redirect') {
+        setRedirecting('Session expired. Redirecting to sign in...');
         navigate(event.redirectTo, { replace: true });
       }
     });
   }, [navigate]);
 
-  return null;
+  // Clear the loader once navigation completes (location changed to target).
+  useEffect(() => {
+    if (!redirecting) return;
+    const timer = setTimeout(() => setRedirecting(null), 400);
+    return () => clearTimeout(timer);
+  }, [location.pathname, redirecting]);
+
+  return redirecting ? <RedirectLoader message={redirecting} /> : null;
 };
