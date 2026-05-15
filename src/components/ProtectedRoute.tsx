@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { RECORD_DAILY_VISIT } from '@/graphql/mutations/attendance';
 import { CURRENT_USER_QUERY } from '@/graphql/mutations/auth';
+import { RedirectLoader } from '@/components/RedirectLoader';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
