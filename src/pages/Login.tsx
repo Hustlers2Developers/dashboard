@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Eye, EyeOff, LogIn, ExternalLink } from "lucide-react";
+import { RedirectLoader } from "@/components/RedirectLoader";
 
 const Login = () => {
   const [email, setEmail] = useState("");
