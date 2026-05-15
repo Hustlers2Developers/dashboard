@@ -37,7 +37,12 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!isAuthenticated) {
     const redirect = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`/login?redirect=${redirect}`} replace />;
+    return (
+      <>
+        <RedirectLoader message="Please sign in to continue..." />
+        <Navigate to={`/login?redirect=${redirect}`} replace />
+      </>
+    );
   }
 
   return <div key={location.pathname} className="animate-fade-in">{children}</div>;
