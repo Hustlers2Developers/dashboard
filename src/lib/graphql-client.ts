@@ -3,6 +3,7 @@ import { setContext } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { from, switchMap } from 'rxjs';
 import { useAuthStore } from '@/stores/auth-store';
+import { emitAuthEvent } from '@/lib/auth-events';
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.online/graphql';
 
