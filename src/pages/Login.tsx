@@ -33,7 +33,12 @@ const Login = () => {
   const [fetchUser] = useLazyQuery(CURRENT_USER_QUERY);
 
   if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+    return (
+      <>
+        <RedirectLoader message="Taking you to your dashboard..." />
+        <Navigate to={redirectTo} replace />
+      </>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
