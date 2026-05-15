@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Eye, EyeOff, LogIn, ExternalLink } from "lucide-react";
+import { RedirectLoader } from "@/components/RedirectLoader";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -32,7 +33,12 @@ const Login = () => {
   const [fetchUser] = useLazyQuery(CURRENT_USER_QUERY);
 
   if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+    return (
+      <>
+        <RedirectLoader message="Taking you to your dashboard..." />
+        <Navigate to={redirectTo} replace />
+      </>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

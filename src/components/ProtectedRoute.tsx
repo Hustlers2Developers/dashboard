@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { RECORD_DAILY_VISIT } from '@/graphql/mutations/attendance';
 import { CURRENT_USER_QUERY } from '@/graphql/mutations/auth';
+import { RedirectLoader } from '@/components/RedirectLoader';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -36,7 +37,12 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!isAuthenticated) {
     const redirect = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`/login?redirect=${redirect}`} replace />;
+    return (
+      <>
+        <RedirectLoader message="Please sign in to continue..." />
+        <Navigate to={`/login?redirect=${redirect}`} replace />
+      </>
+    );
   }
 
   return <div key={location.pathname} className="animate-fade-in">{children}</div>;
