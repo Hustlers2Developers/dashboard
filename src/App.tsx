@@ -23,6 +23,7 @@ import Memberships from "./pages/Memberships";
 import Users from "./pages/Users";
 import Profile from "./pages/Profile";
 import Services from "./pages/Services";
+import Analytics from "./pages/Analytics";
 import AcceptInvite from "./pages/AcceptInvite";
 import Apply from "./pages/Apply";
 import GuestApplications from "./pages/GuestApplications";
@@ -143,6 +144,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Services />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
                 </ProtectedRoute>
               }
             />

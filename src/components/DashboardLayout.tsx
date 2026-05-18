@@ -21,6 +21,7 @@ import {
   UserCircle,
   Server,
   ClipboardList,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ const getNavItems = (userRole?: string) => [
     ? [
         { to: "/organizations", label: "Organizations", icon: Shield },
         { to: "/services", label: "Services", icon: Server },
+        { to: "/analytics", label: "Analytics", icon: BarChart3 },
       ]
     : []),
 ];
