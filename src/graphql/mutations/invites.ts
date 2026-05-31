@@ -28,15 +28,6 @@ export const CREATE_INVITE_LINK = gql`
     }
   }
 `;
-export const ACCEPT_INVITE = gql`
-  mutation AcceptInvite($input: AcceptInviteInput!) {
-    acceptInvite(input: $input) {
-      accessToken
-      refreshToken
-    }
-  }
-`;
-
 export const VALIDATE_INVITE = gql`
   query ValidateInvite($token: String!) {
     validateInvite(token: $token) {

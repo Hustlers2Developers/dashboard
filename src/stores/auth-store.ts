@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { startTokenRefreshTimer, stopTokenRefreshTimer } from '@/lib/graphql-client';
 
 interface User {
   sub: string;
@@ -9,48 +8,43 @@ interface User {
   orgId: string;
 }
 
+// accessToken lives only in JS memory — never persisted to localStorage
+let _accessToken: string | null = null;
+export const getToken = () => _accessToken;
+export const setToken = (t: string) => { _accessToken = t; };
+export const clearToken = () => { _accessToken = null; };
+
 interface AuthState {
-  accessToken: string | null;
-  refreshToken: string | null;
   user: User | null;
   isAuthenticated: boolean;
-  setTokens: (accessToken: string, refreshToken: string) => void;
+  isSessionLoading: boolean;
+  setTokens: (accessToken: string) => void;
   setUser: (user: User) => void;
   logout: () => void;
-  initialize: () => void;
+  setSessionLoading: (loading: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
-      accessToken: null,
-      refreshToken: null,
+    (set) => ({
       user: null,
       isAuthenticated: false,
-      setTokens: (accessToken, refreshToken) => {
-        set({ accessToken, refreshToken, isAuthenticated: true });
-        startTokenRefreshTimer();
+      isSessionLoading: true,
+      setTokens: (accessToken) => {
+        setToken(accessToken);
+        set({ isAuthenticated: true });
       },
       setUser: (user) => set({ user }),
       logout: () => {
-        stopTokenRefreshTimer();
-        set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
+        clearToken();
+        set({ user: null, isAuthenticated: false });
       },
-      initialize: () => {
-        const state = get();
-        if (state.accessToken && state.refreshToken) {
-          startTokenRefreshTimer();
-        }
-      },
+      setSessionLoading: (loading) => set({ isSessionLoading: loading }),
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      // Persist only user profile — isAuthenticated and token reset on every reload
+      partialize: (state) => ({ user: state.user }),
     }
   )
 );

@@ -230,7 +230,7 @@ const Organizations = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteTarget(org)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -248,7 +248,7 @@ const Organizations = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete organization?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{deleteTarget?.name}</strong> aur uska saara associated data permanently delete ho jayega.
+              <strong>{deleteTarget?.name}</strong> and all its associated data will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

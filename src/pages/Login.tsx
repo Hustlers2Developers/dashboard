@@ -54,7 +54,7 @@ const Login = () => {
       });
       const loginData = data as { login: AuthResponse } | undefined;
       if (!loginData?.login) throw new Error("Login failed");
-      setTokens(loginData.login.accessToken, loginData.login.refreshToken);
+      setTokens(loginData.login.accessToken);
 
       const { data: userData } = await fetchUser();
       const userResult = userData as { currentUser: AuthUser } | undefined;

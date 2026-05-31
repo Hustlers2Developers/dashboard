@@ -184,7 +184,7 @@ const Projects = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground"
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     onClick={() => setDeleteTarget(project)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -210,7 +210,7 @@ const Projects = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete project?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{deleteTarget?.name}</strong> aur uske saare tasks permanently delete ho jayenge.
+              <strong>{deleteTarget?.name}</strong> and all its tasks will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

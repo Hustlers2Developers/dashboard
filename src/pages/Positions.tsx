@@ -250,7 +250,7 @@ const Positions = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteTarget(pos)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -276,7 +276,7 @@ const Positions = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete position?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{deleteTarget?.name}</strong> permanently delete ho jayegi.
+              <strong>{deleteTarget?.name}</strong> will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

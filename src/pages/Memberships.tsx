@@ -604,7 +604,7 @@ const Memberships = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-destructive hover:text-destructive"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                 onClick={() => setRemoveTarget(membership)}
                                 disabled={removingMember}
                               >
@@ -718,7 +718,7 @@ const Memberships = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove member?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{removeTarget ? (usersById[removeTarget.userId]?.name || usersById[removeTarget.userId]?.email || removeTarget.userId) : ""}</strong> ko is organization se remove kar diya jayega.
+              <strong>{removeTarget ? (usersById[removeTarget.userId]?.name || usersById[removeTarget.userId]?.email || removeTarget.userId) : ""}</strong> will be removed from this organization.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

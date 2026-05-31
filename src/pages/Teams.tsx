@@ -70,7 +70,7 @@ const TeamMembersList = ({
     <div className="space-y-2">
       {members.map((m: TeamMember) => {
         const user = usersMap.get(m.userId);
-        const display = user?.name || user?.email || m.userId;
+        const display = user?.name || user?.email || "Unknown User";
         const initials = display
           .split(/[\s@.]+/)
           .filter(Boolean)
@@ -287,7 +287,7 @@ const Teams = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteTarget(team)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -313,7 +313,7 @@ const Teams = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete team?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{deleteTarget?.name}</strong> aur uske saare members remove ho jayenge. Yeh action undo nahi ho sakta.
+              <strong>{deleteTarget?.name}</strong> and all its members will be removed. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

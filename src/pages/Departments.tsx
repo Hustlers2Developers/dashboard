@@ -217,7 +217,7 @@ const Departments = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setDeleteTarget(dept)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -235,7 +235,7 @@ const Departments = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete department?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{deleteTarget?.name}</strong> permanently delete ho jayega. Agar is department mein positions hain toh pehle unhe delete karna hoga.
+              <strong>{deleteTarget?.name}</strong> will be permanently deleted. Please delete all positions in this department first.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

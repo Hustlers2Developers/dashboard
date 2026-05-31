@@ -67,7 +67,6 @@ export type AttendanceSummary = {
 export type AuthResponse = {
   __typename?: 'AuthResponse';
   accessToken: Scalars['String']['output'];
-  refreshToken: Scalars['String']['output'];
 };
 
 export type AuthUser = {

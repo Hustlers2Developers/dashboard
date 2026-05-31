@@ -24,7 +24,6 @@ import Users from "./pages/Users";
 import Profile from "./pages/Profile";
 import Services from "./pages/Services";
 import Analytics from "./pages/Analytics";
-import AcceptInvite from "./pages/AcceptInvite";
 import Apply from "./pages/Apply";
 import GuestApplications from "./pages/GuestApplications";
 import NotFound from "./pages/NotFound";
@@ -155,7 +154,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route path="/apply" element={<Apply />} />
             <Route
               path="/applications"
