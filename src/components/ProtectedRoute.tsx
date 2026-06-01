@@ -8,7 +8,7 @@ import { RedirectLoader } from '@/components/RedirectLoader';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const isSessionLoading = useAuthStore((s) => s.isSessionLoading);
+  const loading = useAuthStore((s) => s.loading);
   const setUser = useAuthStore((s) => s.setUser);
   const location = useLocation();
   const [recordDailyVisit] = useMutation(RECORD_DAILY_VISIT);
@@ -36,7 +36,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     }
   }, [isAuthenticated, recordDailyVisit]);
 
-  if (isSessionLoading) {
+  if (loading) {
     return <RedirectLoader message="Restoring session..." />;
   }
 

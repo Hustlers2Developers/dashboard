@@ -1,27 +1,25 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getAccessToken, setAccessToken, clearToken } from '@/lib/auth/token-manager';
+import { authService, AuthUser } from '@/services/auth.service';
 
-interface User {
-  sub: string;
-  email: string;
-  systemRole: 'SUPER_ADMIN' | 'USER';
-  orgId: string;
-}
-
-// accessToken lives only in JS memory — never persisted to localStorage
-let _accessToken: string | null = null;
-export const getToken = () => _accessToken;
-export const setToken = (t: string) => { _accessToken = t; };
-export const clearToken = () => { _accessToken = null; };
+// Re-export token helpers so existing imports in graphql-client keep working
+export { getAccessToken as getToken, setAccessToken as setToken, clearToken };
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
-  isSessionLoading: boolean;
+  loading: boolean;
+  hydrate: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<string | null>;
+  fetchCurrentUser: () => Promise<void>;
   setTokens: (accessToken: string) => void;
-  setUser: (user: User) => void;
-  logout: () => void;
-  setSessionLoading: (loading: boolean) => void;
+  setUser: (user: AuthUser) => void;
+  /** @deprecated use loading */
+  isSessionLoading: boolean;
+  setSessionLoading: (v: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,17 +27,64 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
-      isSessionLoading: true,
+      loading: true,
+      // legacy alias
+      get isSessionLoading() { return (this as AuthState).loading; },
+      setSessionLoading: (v) => set({ loading: v }),
+
       setTokens: (accessToken) => {
-        setToken(accessToken);
+        setAccessToken(accessToken);
         set({ isAuthenticated: true });
       },
+
       setUser: (user) => set({ user }),
-      logout: () => {
-        clearToken();
-        set({ user: null, isAuthenticated: false });
+
+      hydrate: async () => {
+        try {
+          const newToken = await authService.refreshTokens();
+          setAccessToken(newToken);
+          set({ isAuthenticated: true });
+        } catch {
+          set({ isAuthenticated: false });
+        } finally {
+          set({ loading: false });
+        }
       },
-      setSessionLoading: (loading) => set({ isSessionLoading: loading }),
+
+      login: async (email, password) => {
+        await authService.login(email, password);
+        set({ isAuthenticated: true });
+      },
+
+      logout: async () => {
+        try {
+          await authService.logout();
+        } finally {
+          clearToken();
+          set({ user: null, isAuthenticated: false });
+        }
+      },
+
+      refresh: async () => {
+        try {
+          const token = await authService.refreshTokens();
+          set({ isAuthenticated: true });
+          return token;
+        } catch {
+          clearToken();
+          set({ user: null, isAuthenticated: false });
+          return null;
+        }
+      },
+
+      fetchCurrentUser: async () => {
+        try {
+          const user = await authService.getCurrentUser();
+          set({ user });
+        } catch {
+          // silently ignore — user info is best-effort
+        }
+      },
     }),
     {
       name: 'auth-storage',

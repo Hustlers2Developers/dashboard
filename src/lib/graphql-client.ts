@@ -2,7 +2,8 @@ import { ApolloClient, InMemoryCache, createHttpLink, ApolloLink, CombinedGraphQ
 import { setContext } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { from, switchMap } from 'rxjs';
-import { getToken, setToken, clearToken, useAuthStore } from '@/stores/auth-store';
+import { getAccessToken as getToken, setAccessToken as setToken, clearToken } from '@/lib/auth/token-manager';
+import { useAuthStore } from '@/stores/auth-store';
 import { emitAuthEvent } from '@/lib/auth-events';
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.online/graphql';
@@ -11,7 +12,7 @@ const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godeveloper
 let isRefreshing = false;
 let pendingResolvers: Array<{ resolve: (token: string) => void; reject: (error: unknown) => void }> = [];
 
-const httpLink = createHttpLink({ uri: GRAPHQL_URL });
+const httpLink = createHttpLink({ uri: GRAPHQL_URL, credentials: 'include' });
 
 const PUBLIC_ROUTES = ['/login', '/apply', '/'];
 
@@ -34,13 +35,14 @@ type RefreshResponse = {
 
 export async function refreshAccessToken(): Promise<string> {
   const currentToken = getToken();
-  if (!currentToken) throw new Error('No access token');
 
   const response = await fetch(GRAPHQL_URL, {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      authorization: `Bearer ${currentToken}`,
+      'apollo-require-preflight': 'true',
+      ...(currentToken ? { authorization: `Bearer ${currentToken}` } : {}),
     },
     body: JSON.stringify({
       query: `mutation RefreshTokens { refreshTokens { accessToken } }`,

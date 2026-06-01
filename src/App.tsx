@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { apolloClient } from "@/lib/graphql-client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthEventBridge } from "@/components/AuthEventBridge";
+import { AuthProvider } from "@/components/AuthProvider";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 
@@ -37,6 +38,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthProvider>
           <AuthEventBridge />
           <Routes>
             <Route path="/" element={<Index />} />
@@ -165,6 +167,7 @@ const App = () => (
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

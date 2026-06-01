@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth-store";
-import { useMutation } from "@apollo/client/react";
-import { LOGOUT_MUTATION } from "@/graphql/mutations/auth";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -22,8 +20,17 @@ import {
   Server,
   ClipboardList,
   BarChart3,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 const getNavItems = (userRole?: string) => [
@@ -57,18 +64,17 @@ export const DashboardLayout = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout: clearAuth } = useAuthStore();
-  const [logoutMutation] = useMutation(LOGOUT_MUTATION);
+  const { user, logout, isAuthenticated } = useAuthStore();
 
   const handleLogout = async () => {
-    try {
-      await logoutMutation();
-    } catch {
-      // proceed even if server logout fails
-    }
-    clearAuth();
+    await logout();
     navigate("/login");
   };
+
+  // Email initials for avatar — shown as soon as isAuthenticated, even before user loads
+  const initials = isAuthenticated
+    ? (user?.email ?? "?").slice(0, 2).toUpperCase()
+    : null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -164,6 +170,49 @@ export const DashboardLayout = ({
               location.pathname.startsWith(n.to),
             )?.label || "Dashboard"}
           </h1>
+
+          {/* User profile — right side */}
+          {isAuthenticated && (
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2 px-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full gold-gradient text-xs font-bold text-primary-foreground">
+                      {initials}
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="truncate text-sm font-medium">{user?.email ?? "Loading..."}</span>
+                      {user?.systemRole && (
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {user.systemRole === "SUPER_ADMIN" ? "Super Admin" : "Member"}
+                        </span>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </header>
 
         <div className="flex-1 overflow-y-auto p-6">{children}</div>
