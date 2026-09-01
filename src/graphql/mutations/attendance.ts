@@ -48,7 +48,7 @@ export const MY_STREAK = gql`
 // ─── Admin Queries ────────────────────────────────────────────────────────────
 
 export const ATTENDANCE_BY_ORGANIZATION = gql`
-  query AttendanceByOrganization($input: AttendanceByOrganizationInput!) {
+  query AttendanceByOrganization($input: AttendanceFilterInput!) {
     attendanceByOrganization(input: $input) {
       id
       userId
@@ -111,21 +111,49 @@ export const CHECK_OUT = gql`
   }
 `;
 
-export const MARK_ATTENDANCE = gql`
-  mutation MarkAttendance($input: MarkAttendanceInput!) {
-    markAttendance(input: $input) {
-      id
-      status
-    }
-  }
-`;
-
 export const BULK_MARK_ATTENDANCE = gql`
   mutation BulkMarkAttendance($input: BulkMarkAttendanceInput!) {
     bulkMarkAttendance(input: $input) {
       successCount
       failedCount
       errors
+    }
+  }
+`;
+
+export const ORG_MEMBERS_STREAKS = gql`
+  query OrgMembersStreaks($organizationId: String!) {
+    orgMembersStreaks(organizationId: $organizationId) {
+      userId
+      name
+      email
+      currentStreak
+      longestStreak
+      freezesAvailable
+      lastActivityDate
+    }
+  }
+`;
+
+export const TOP_STREAKERS = gql`
+  query TopStreakers($organizationId: String, $limit: Int) {
+    topStreakers(organizationId: $organizationId, limit: $limit) {
+      rank
+      userId
+      userName
+      userAvatarUrl
+      currentStreak
+      rankChange
+    }
+  }
+`;
+
+export const MY_LEADERBOARD_RANK = gql`
+  query MyLeaderboardRank($organizationId: String) {
+    myLeaderboardRank(organizationId: $organizationId) {
+      rank
+      currentStreak
+      totalParticipants
     }
   }
 `;

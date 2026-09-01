@@ -181,3 +181,44 @@ export const DELETE_TASK = gql`
     deleteTask(id: $id)
   }
 `;
+
+export const GET_PROJECT_MEMBERS = gql`
+  query GetProjectMembers($projectId: String!) {
+    projectMembers(projectId: $projectId) {
+      id
+      projectId
+      userId
+      role
+      createdAt
+    }
+  }
+`;
+
+export const ADD_PROJECT_MEMBER = gql`
+  mutation AddProjectMember($input: AddProjectMemberInput!) {
+    addProjectMember(input: $input) {
+      id
+      projectId
+      userId
+      role
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_PROJECT_MEMBER = gql`
+  mutation UpdateProjectMember($id: String!, $input: UpdateProjectMemberInput!) {
+    updateProjectMember(id: $id, input: $input) {
+      id
+      userId
+      role
+      updatedAt
+    }
+  }
+`;
+
+export const REMOVE_PROJECT_MEMBER = gql`
+  mutation RemoveProjectMember($id: String!) {
+    removeProjectMember(id: $id)
+  }
+`;

@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 
-const REFRESH_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
+// Access tokens are valid for 15 minutes. Refreshing every 4 minutes was
+// firing a DB-backed mutation ~15x/hour per open tab even when idle, which
+// keeps the Neon endpoint awake continuously and burns compute time fast on
+// a free-tier compute-hours budget. 12 minutes still leaves a safe margin
+// before the 15-minute expiry while cutting refresh frequency ~3x.
+const REFRESH_INTERVAL_MS = 12 * 60 * 1000; // 12 minutes
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const hydrate = useAuthStore((s) => s.hydrate);

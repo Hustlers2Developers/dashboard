@@ -57,7 +57,7 @@ const Analytics = () => {
     analyticsOverview: Overview;
   }>(GET_ANALYTICS_OVERVIEW, {
     variables: { range },
-    fetchPolicy: "cache-and-network",
+    fetchPolicy: "cache-first",
     errorPolicy: "all",
   });
 
@@ -237,7 +237,7 @@ const Analytics = () => {
 {`<script
   src="${window.location.origin}/track.js"
   data-api-key="YOUR_SERVICE_API_KEY"
-  data-endpoint="https://api.godevelopers.online/analytics/collect"
+  data-endpoint="https://api.godevelopers.space/analytics/collect"
   defer></script>`}
             </pre>
           </CardContent>

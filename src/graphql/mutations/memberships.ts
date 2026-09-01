@@ -25,19 +25,6 @@ export const GET_ORG_ROLES = gql`
   }
 `;
 
-export const GET_ALL_USERS = gql`
-  query GetAllUsers {
-    getAllUsers {
-      id
-      name
-      email
-      systemRole
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
 export const CREATE_MEMBERSHIP = gql`
   mutation CreateMembership($input: CreateMembershipInput!) {
     createMembership(input: $input) {

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
-import { useAuthStore } from "@/stores/auth-store";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { MY_PROFILE, UPDATE_PROFILE } from "@/graphql/mutations/users";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +12,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { User, Github, Linkedin, Globe, Phone, MapPin, Briefcase } from "lucide-react";
 
-const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL as string || 'https://api.godevelopers.online/graphql';
-const REST_BASE = GRAPHQL_URL.replace('/graphql', '');
-
 type UserDetails = {
   phoneNumber?: string | null;
   bio?: string | null;
@@ -23,8 +19,12 @@ type UserDetails = {
   dob?: string | null;
   address?: string | null;
   profilePicUrl?: string | null;
+  avatarUrl?: string | null;
   githubUsername?: string | null;
   linkedInUrl?: string | null;
+  leetcodeUsername?: string | null;
+  gfgUsername?: string | null;
+  instagramUrl?: string | null;
   portfolioUrl?: string | null;
 };
 
@@ -37,13 +37,51 @@ type ProfileData = {
   details?: UserDetails | null;
 };
 
+// Renders a value as a clickable link in view mode. `href` is computed from
+// the raw value (e.g. turning a bare username into a full profile URL);
+// falls back to plain text when there's no value.
+const LinkValue = ({
+  value,
+  href,
+}: {
+  value?: string | null;
+  href?: string | null;
+}) => {
+  if (!value) return <p className="text-sm text-foreground">—</p>;
+  if (!href) return <p className="text-sm text-foreground">{value}</p>;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-sm text-accent hover:underline break-all"
+    >
+      {value}
+    </a>
+  );
+};
+
+const withProtocol = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+
+const initials = (name?: string | null, email?: string) => {
+  const base = name?.trim() || email || "";
+  return (
+    base
+      .split(/[\s@.]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("") || "?"
+  );
+};
+
 const Profile = () => {
-  const { accessToken } = useAuthStore();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   const { data, loading, error, refetch } = useQuery<{ myProfile: ProfileData }>(MY_PROFILE, {
-    fetchPolicy: "cache-and-network",
+    fetchPolicy: "cache-first",
   });
 
   const [updateProfile] = useMutation(UPDATE_PROFILE);
@@ -59,6 +97,9 @@ const Profile = () => {
     dob: "",
     githubUsername: "",
     linkedInUrl: "",
+    leetcodeUsername: "",
+    gfgUsername: "",
+    instagramUrl: "",
     portfolioUrl: "",
     profilePicUrl: "",
   });
@@ -74,9 +115,13 @@ const Profile = () => {
         dob: profile.details?.dob ? profile.details.dob.split("T")[0] : "",
         githubUsername: profile.details?.githubUsername || "",
         linkedInUrl: profile.details?.linkedInUrl || "",
+        leetcodeUsername: profile.details?.leetcodeUsername || "",
+        gfgUsername: profile.details?.gfgUsername || "",
+        instagramUrl: profile.details?.instagramUrl || "",
         portfolioUrl: profile.details?.portfolioUrl || "",
         profilePicUrl: profile.details?.profilePicUrl || "",
       });
+      setAvatarError(false);
     }
   }, [profile]);
 
@@ -88,45 +133,27 @@ const Profile = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      // GraphQL updateProfile for name + social links
+      // Single GraphQL mutation covers the User record (name) and all
+      // UserDetails fields — no separate REST call needed.
       await updateProfile({
         variables: {
           input: {
             name: form.name || undefined,
             bio: form.bio || undefined,
             title: form.title || undefined,
+            phoneNumber: form.phoneNumber || undefined,
+            address: form.address || undefined,
+            dob: form.dob || undefined,
+            profilePicUrl: form.profilePicUrl || undefined,
             githubUsername: form.githubUsername || undefined,
             linkedInUrl: form.linkedInUrl || undefined,
+            leetcodeUsername: form.leetcodeUsername || undefined,
+            gfgUsername: form.gfgUsername || undefined,
+            instagramUrl: form.instagramUrl || undefined,
             portfolioUrl: form.portfolioUrl || undefined,
           },
         },
       });
-
-      // REST PATCH for additional user details
-      const res = await fetch(`${REST_BASE}/users/me/details`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          name: form.name || undefined,
-          phoneNumber: form.phoneNumber || undefined,
-          bio: form.bio || undefined,
-          title: form.title || undefined,
-          dob: form.dob || undefined,
-          address: form.address || undefined,
-          profilePicUrl: form.profilePicUrl || undefined,
-          githubUsername: form.githubUsername || undefined,
-          linkedInUrl: form.linkedInUrl || undefined,
-          portfolioUrl: form.portfolioUrl || undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { message?: string };
-        throw new Error(body.message || "Failed to update profile");
-      }
 
       toast.success("Profile updated successfully.");
       setEditing(false);
@@ -171,6 +198,29 @@ const Profile = () => {
             </CardContent>
           </Card>
         ) : (
+          <>
+            {profile && (
+              <Card className="border-border">
+                <CardContent className="flex items-center gap-4 p-6">
+                  {profile.details?.profilePicUrl && !avatarError ? (
+                    <img
+                      src={profile.details.profilePicUrl}
+                      alt={profile.name || profile.email}
+                      onError={() => setAvatarError(true)}
+                      className="h-16 w-16 shrink-0 rounded-full border border-border object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
+                      {initials(profile.name, profile.email)}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-foreground">{profile.name || "Unnamed user"}</p>
+                    <p className="text-sm text-muted-foreground">{profile.email}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           <form onSubmit={handleSave}>
             <Card className="border-border">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -198,7 +248,16 @@ const Profile = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Email</Label>
-                    <p className="text-sm text-muted-foreground">{profile?.email}</p>
+                    {profile?.email ? (
+                      <a
+                        href={`mailto:${profile.email}`}
+                        className="text-sm text-accent hover:underline break-all"
+                      >
+                        {profile.email}
+                      </a>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">—</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label><Briefcase className="mr-1 inline h-3.5 w-3.5" />Job Title</Label>
@@ -260,7 +319,10 @@ const Profile = () => {
                       {editing ? (
                         <Input name="githubUsername" value={form.githubUsername} onChange={handleChange} placeholder="alicejohnson" />
                       ) : (
-                        <p className="text-sm text-foreground">{profile?.details?.githubUsername || "—"}</p>
+                        <LinkValue
+                          value={profile?.details?.githubUsername}
+                          href={profile?.details?.githubUsername ? `https://github.com/${profile.details.githubUsername}` : null}
+                        />
                       )}
                     </div>
                     <div className="space-y-2">
@@ -268,7 +330,10 @@ const Profile = () => {
                       {editing ? (
                         <Input name="linkedInUrl" value={form.linkedInUrl} onChange={handleChange} placeholder="https://linkedin.com/in/..." />
                       ) : (
-                        <p className="text-sm text-foreground">{profile?.details?.linkedInUrl || "—"}</p>
+                        <LinkValue
+                          value={profile?.details?.linkedInUrl}
+                          href={profile?.details?.linkedInUrl ? withProtocol(profile.details.linkedInUrl) : null}
+                        />
                       )}
                     </div>
                     <div className="space-y-2">
@@ -276,7 +341,10 @@ const Profile = () => {
                       {editing ? (
                         <Input name="portfolioUrl" value={form.portfolioUrl} onChange={handleChange} placeholder="https://yoursite.dev" />
                       ) : (
-                        <p className="text-sm text-foreground">{profile?.details?.portfolioUrl || "—"}</p>
+                        <LinkValue
+                          value={profile?.details?.portfolioUrl}
+                          href={profile?.details?.portfolioUrl ? withProtocol(profile.details.portfolioUrl) : null}
+                        />
                       )}
                     </div>
                     <div className="space-y-2">
@@ -284,7 +352,43 @@ const Profile = () => {
                       {editing ? (
                         <Input name="profilePicUrl" value={form.profilePicUrl} onChange={handleChange} placeholder="https://cdn.example.com/photo.jpg" />
                       ) : (
-                        <p className="text-sm text-foreground">{profile?.details?.profilePicUrl || "—"}</p>
+                        <LinkValue
+                          value={profile?.details?.profilePicUrl}
+                          href={profile?.details?.profilePicUrl ? withProtocol(profile.details.profilePicUrl) : null}
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>LeetCode Username</Label>
+                      {editing ? (
+                        <Input name="leetcodeUsername" value={form.leetcodeUsername} onChange={handleChange} placeholder="alice_lc" />
+                      ) : (
+                        <LinkValue
+                          value={profile?.details?.leetcodeUsername}
+                          href={profile?.details?.leetcodeUsername ? `https://leetcode.com/${profile.details.leetcodeUsername}` : null}
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>GeeksforGeeks Username</Label>
+                      {editing ? (
+                        <Input name="gfgUsername" value={form.gfgUsername} onChange={handleChange} placeholder="alice_gfg" />
+                      ) : (
+                        <LinkValue
+                          value={profile?.details?.gfgUsername}
+                          href={profile?.details?.gfgUsername ? `https://www.geeksforgeeks.org/user/${profile.details.gfgUsername}` : null}
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Instagram URL</Label>
+                      {editing ? (
+                        <Input name="instagramUrl" value={form.instagramUrl} onChange={handleChange} placeholder="https://instagram.com/..." />
+                      ) : (
+                        <LinkValue
+                          value={profile?.details?.instagramUrl}
+                          href={profile?.details?.instagramUrl ? withProtocol(profile.details.instagramUrl) : null}
+                        />
                       )}
                     </div>
                   </div>
@@ -292,6 +396,7 @@ const Profile = () => {
               </CardContent>
             </Card>
           </form>
+          </>
         )}
       </div>
     </DashboardLayout>

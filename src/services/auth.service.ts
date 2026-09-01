@@ -1,6 +1,6 @@
 import { setAccessToken, clearToken } from '@/lib/auth/token-manager';
 
-const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.online/graphql';
+const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.space/graphql';
 
 interface GQLResponse<T> {
   data?: T;

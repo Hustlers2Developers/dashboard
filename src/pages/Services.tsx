@@ -17,6 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefetchOverlay } from "@/components/RefetchOverlay";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -40,6 +47,9 @@ import { AlertCircle, Copy, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, Refres
 type Service = {
   id: string;
   name: string;
+  slug: string;
+  domain: string;
+  serviceType?: string | null;
   description?: string | null;
   url: string;
   githubUrl?: string | null;
@@ -47,14 +57,31 @@ type Service = {
   platformLinks?: string[] | null;
   uptime?: number | null;
   goal?: string | null;
+  frontendFramework?: string | null;
+  styling?: string | null;
+  deploymentPlatform?: string | null;
+  proxyProvider?: string | null;
+  version?: string | null;
+  tags?: string[] | null;
   apiKey: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 };
 
+const SERVICE_TYPES = [
+  "CORE_PLATFORM",
+  "LEARNING_SERVICE",
+  "PLATFORM_SERVICE",
+  "COMMUNITY_SERVICE",
+  "KNOWLEDGE_SERVICE",
+];
+
 const emptyForm = {
   name: "",
+  slug: "",
+  domain: "",
+  serviceType: "",
   description: "",
   url: "",
   githubUrl: "",
@@ -62,7 +89,15 @@ const emptyForm = {
   platformLinks: "",
   uptime: "",
   goal: "",
+  tags: "",
 };
+
+const slugify = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 const Services = () => {
   const me = useAuthStore((s) => s.user);
@@ -75,7 +110,7 @@ const Services = () => {
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
 
   const { data, loading, error, refetch } = useQuery<{ services: Service[] }>(GET_SERVICES, {
-    fetchPolicy: "cache-and-network",
+    fetchPolicy: "cache-first",
     notifyOnNetworkStatusChange: true,
     skip: !isSuperAdmin,
   });
@@ -89,17 +124,35 @@ const Services = () => {
 
   const services = data?.services ?? [];
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  // Once the user has touched slug/domain directly, stop auto-deriving them
+  // from the name so we don't clobber a manual edit.
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [domainTouched, setDomainTouched] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === "slug") setSlugTouched(true);
+    if (name === "domain") setDomainTouched(true);
+    setForm((p) => {
+      const next = { ...p, [name]: value };
+      if (name === "name" && !slugTouched) next.slug = slugify(value);
+      return next;
+    });
+  };
 
   const openCreate = () => {
     setForm(emptyForm);
+    setSlugTouched(false);
+    setDomainTouched(false);
     setCreateOpen(true);
   };
 
   const openEdit = (svc: Service) => {
     setForm({
       name: svc.name,
+      slug: svc.slug,
+      domain: svc.domain,
+      serviceType: svc.serviceType || "",
       description: svc.description || "",
       url: svc.url,
       githubUrl: svc.githubUrl || "",
@@ -107,12 +160,18 @@ const Services = () => {
       platformLinks: (svc.platformLinks ?? []).join(", "),
       uptime: svc.uptime != null ? String(svc.uptime) : "",
       goal: svc.goal || "",
+      tags: (svc.tags ?? []).join(", "),
     });
+    setSlugTouched(true);
+    setDomainTouched(true);
     setEditService(svc);
   };
 
-  const buildInput = () => ({
+  const buildCreateInput = () => ({
     name: form.name,
+    slug: form.slug,
+    domain: form.domain,
+    serviceType: form.serviceType || undefined,
     description: form.description || undefined,
     url: form.url,
     githubUrl: form.githubUrl || undefined,
@@ -120,13 +179,15 @@ const Services = () => {
     platformLinks: form.platformLinks ? form.platformLinks.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
     uptime: form.uptime ? parseFloat(form.uptime) : undefined,
     goal: form.goal || undefined,
+    tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
   });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.url) { toast.error("Name and URL are required."); return; }
+    if (!form.slug || !form.domain) { toast.error("Slug and domain are required."); return; }
     try {
-      await createService({ variables: { input: buildInput() } });
+      await createService({ variables: { input: buildCreateInput() } });
       toast.success("Service created.");
       setCreateOpen(false);
       await refetch();
@@ -216,12 +277,54 @@ const Services = () => {
     );
   }
 
-  const renderServiceForm = (onSubmit: (e: React.FormEvent) => Promise<void>, submitting: boolean) => (
+  const renderServiceForm = (
+    onSubmit: (e: React.FormEvent) => Promise<void>,
+    submitting: boolean,
+    isEdit: boolean,
+  ) => (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Name *</Label>
           <Input name="name" value={form.name} onChange={handleChange} placeholder="Hustlers Blog" required />
+        </div>
+        <div className="space-y-2">
+          <Label>Service Type</Label>
+          <Select
+            value={form.serviceType || undefined}
+            onValueChange={(v) => setForm((p) => ({ ...p, serviceType: v }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              {SERVICE_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Slug * {isEdit && <span className="text-xs text-muted-foreground">(can't be changed)</span>}</Label>
+          <Input
+            name="slug"
+            value={form.slug}
+            onChange={handleChange}
+            placeholder="hustlers-blog"
+            required
+            disabled={isEdit}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Domain * {isEdit && <span className="text-xs text-muted-foreground">(can't be changed)</span>}</Label>
+          <Input
+            name="domain"
+            value={form.domain}
+            onChange={handleChange}
+            placeholder="blog.godevelopers.space"
+            required
+            disabled={isEdit}
+          />
         </div>
         <div className="space-y-2">
           <Label>URL *</Label>
@@ -234,6 +337,10 @@ const Services = () => {
         <div className="space-y-2">
           <Label>Uptime %</Label>
           <Input name="uptime" type="number" min="0" max="100" step="0.1" value={form.uptime} onChange={handleChange} placeholder="99.9" />
+        </div>
+        <div className="space-y-2">
+          <Label>Tags (comma-separated)</Label>
+          <Input name="tags" value={form.tags} onChange={handleChange} placeholder="javascript, learning" disabled={isEdit} />
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label>Description</Label>
@@ -252,6 +359,11 @@ const Services = () => {
           <Input name="platformLinks" value={form.platformLinks} onChange={handleChange} placeholder="https://..., https://..." />
         </div>
       </div>
+      {isEdit && (
+        <p className="text-xs text-muted-foreground">
+          Slug, domain, service type, and tags can only be set when creating a service.
+        </p>
+      )}
       <DialogFooter>
         <Button type="submit" className="gold-gradient text-primary-foreground" disabled={submitting}>
           {submitting ? (
@@ -314,7 +426,13 @@ const Services = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <CardTitle className="truncate text-base">{svc.name}</CardTitle>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <CardTitle className="truncate text-base">{svc.name}</CardTitle>
+                          {svc.serviceType && (
+                            <Badge variant="outline" className="text-[10px]">{svc.serviceType}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{svc.domain}</p>
                         {svc.description && (
                           <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{svc.description}</p>
                         )}
@@ -337,6 +455,14 @@ const Services = () => {
                       <div className="flex flex-wrap gap-1">
                         {(svc.platforms ?? []).map((p) => (
                           <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {(svc.tags ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(svc.tags ?? []).map((t) => (
+                          <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
                         ))}
                       </div>
                     )}
@@ -393,7 +519,7 @@ const Services = () => {
               <DialogTitle>New Internal Service</DialogTitle>
               <DialogDescription>Register a service that connects to this platform.</DialogDescription>
             </DialogHeader>
-            {renderServiceForm(handleCreate, creating)}
+            {renderServiceForm(handleCreate, creating, false)}
           </DialogContent>
         </Dialog>
 
@@ -404,7 +530,7 @@ const Services = () => {
               <DialogTitle>Edit Service</DialogTitle>
               <DialogDescription>Update details for {editService?.name}.</DialogDescription>
             </DialogHeader>
-            {renderServiceForm(handleUpdate, updating)}
+            {renderServiceForm(handleUpdate, updating, true)}
           </DialogContent>
         </Dialog>
 

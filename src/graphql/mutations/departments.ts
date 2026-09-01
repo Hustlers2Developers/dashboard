@@ -63,3 +63,33 @@ export const DELETE_DEPARTMENT = gql`
     deleteDepartment(id: $id)
   }
 `;
+
+export const GET_DEPARTMENT_USERS = gql`
+  query GetDepartmentUsers($departmentId: String!) {
+    departmentUsers(departmentId: $departmentId) {
+      id
+      userId
+      departmentId
+      positionId
+      createdAt
+    }
+  }
+`;
+
+export const ASSIGN_USER_TO_DEPARTMENT = gql`
+  mutation AssignUserToDepartment($input: AssignUserDepartmentInput!) {
+    assignUserToDepartment(input: $input) {
+      id
+      userId
+      departmentId
+      positionId
+      createdAt
+    }
+  }
+`;
+
+export const REMOVE_USER_FROM_DEPARTMENT = gql`
+  mutation RemoveUserFromDepartment($id: String!) {
+    removeUserFromDepartment(id: $id)
+  }
+`;

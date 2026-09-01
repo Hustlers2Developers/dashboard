@@ -5,6 +5,9 @@ export const GET_SERVICES = gql`
     services {
       id
       name
+      slug
+      domain
+      serviceType
       description
       url
       githubUrl
@@ -12,6 +15,12 @@ export const GET_SERVICES = gql`
       platformLinks
       uptime
       goal
+      frontendFramework
+      styling
+      deploymentPlatform
+      proxyProvider
+      version
+      tags
       apiKey
       isActive
       createdAt
@@ -25,6 +34,9 @@ export const GET_SERVICE = gql`
     service(id: $id) {
       id
       name
+      slug
+      domain
+      serviceType
       description
       url
       githubUrl
@@ -32,6 +44,12 @@ export const GET_SERVICE = gql`
       platformLinks
       uptime
       goal
+      frontendFramework
+      styling
+      deploymentPlatform
+      proxyProvider
+      version
+      tags
       apiKey
       isActive
       createdAt
@@ -45,6 +63,9 @@ export const CREATE_SERVICE = gql`
     createService(input: $input) {
       id
       name
+      slug
+      domain
+      serviceType
       url
       apiKey
       isActive
@@ -58,7 +79,13 @@ export const UPDATE_SERVICE = gql`
     updateService(id: $id, input: $input) {
       id
       name
+      description
+      url
+      githubUrl
+      platforms
+      platformLinks
       uptime
+      goal
       isActive
       updatedAt
     }

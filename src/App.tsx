@@ -26,6 +26,9 @@ import Profile from "./pages/Profile";
 import Services from "./pages/Services";
 import Analytics from "./pages/Analytics";
 import Apply from "./pages/Apply";
+import AcceptInvite from "./pages/AcceptInvite";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import GuestApplications from "./pages/GuestApplications";
 import NotFound from "./pages/NotFound";
 
@@ -157,6 +160,9 @@ const App = () => (
               }
             />
             <Route path="/apply" element={<Apply />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/applications"
               element={

@@ -38,3 +38,31 @@ export const VALIDATE_INVITE = gql`
     }
   }
 `;
+
+export const ACCEPT_INVITE = gql`
+  mutation AcceptInvite($input: AcceptInviteInput!) {
+    acceptInvite(input: $input) {
+      accessToken
+    }
+  }
+`;
+
+export const RESEND_INVITE_LINK = gql`
+  mutation ResendInviteLink($inviteId: ID!) {
+    resendInviteLink(inviteId: $inviteId) {
+      inviteId
+      inviteLink
+      email
+      roleId
+      expiresAt
+      invitedById
+      organizationId
+    }
+  }
+`;
+
+export const DELETE_INVITE = gql`
+  mutation DeleteInvite($inviteId: ID!) {
+    deleteInvite(inviteId: $inviteId)
+  }
+`;

@@ -123,6 +123,17 @@ export const GET_TEAMS_BY_PROJECT = gql`
   }
 `;
 
+export const ASSIGN_TEAM_TO_PROJECT = gql`
+  mutation AssignTeamToProject($input: AssignTeamToProjectInput!) {
+    assignTeamToProject(input: $input) {
+      id
+      name
+      projectId
+      updatedAt
+    }
+  }
+`;
+
 export const GET_TEAM_MEMBERS_BY_USER = gql`
   query GetTeamMembersByUser($userId: String!, $organizationId: String!) {
     teamMembersByUser(userId: $userId, organizationId: $organizationId) {

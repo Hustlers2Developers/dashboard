@@ -1,20 +1,66 @@
 schema {
   query: Query
   mutation: Mutation
-  subscription: Subscription
 }
 
 input AcceptInviteInput {
+  email: String!
   name: String!
   password: String!
   token: String!
 }
 
+"""Represents the type of activity a user performed."""
 enum ActivityType {
   LOGIN
   MEETING_ATTENDED
   PROJECT_CONTRIBUTION
   TASK_UPDATE
+}
+
+input AddProjectMemberInput {
+  projectId: String!
+  """Defaults to CONTRIBUTOR when omitted."""
+  role: ProjectRole
+  userId: String!
+}
+
+type AnalyticsOverview {
+  activeServices: Int!
+  perService: [ServiceAnalyticsRow!]!
+  timeseries: [AnalyticsTimePoint!]!
+  totalPageviews: Int!
+  totalSessions: Int!
+  totalUniqueVisitors: Int!
+}
+
+enum AnalyticsRange {
+  ALL_TIME
+  LAST_7_DAYS
+  LAST_30_DAYS
+  TODAY
+}
+
+type AnalyticsTimePoint {
+  date: String!
+  pageviews: Int!
+  uniqueVisitors: Int!
+}
+
+input AssignTeamToProjectInput {
+  """Pass null to detach the team from its current project."""
+  projectId: String
+  teamId: String!
+}
+
+input AssignUserDepartmentInput {
+  departmentId: String!
+  """
+  The position (within the department) to assign to the user.
+  Must belong to the specified department.
+  """
+  positionId: String!
+  userId: String!
 }
 
 type Attendance {
@@ -52,12 +98,12 @@ type AttendanceSummary {
 
 type AuthResponse {
   accessToken: String!
-  refreshToken: String!
 }
 
 type AuthUser {
   email: String!
   orgId: String!
+  orgRole: String
   sub: String!
   systemRole: SystemRole!
 }
@@ -74,56 +120,13 @@ input BulkMarkAttendanceInput {
   organizationId: String!
 }
 
-type Coupon {
-  code: String!
-  createdAt: DateTime!
-  discountType: String!
-  discountValue: Float!
-  expiresAt: DateTime
-  id: ID!
-  maxDiscountAmount: Float
-  maxUsageCount: Int!
-  minOrderAmount: Float!
-  status: String!
-  updatedAt: DateTime!
-  usageCount: Int!
-  usagePerUser: Int!
-}
-
-type CouponStats {
-  coupon: Coupon!
-  remainingUsage: Int!
-  totalDiscount: Float!
-  totalOrders: Int!
-  totalUsed: Int!
-}
-
-enum CouponStatus {
-  ACTIVE
-  EXPIRED
-  INACTIVE
-  USED
-}
-
-type CouponValidation {
-  discount: Float!
-  isValid: Boolean!
-  message: String!
-}
-
-input CreateCouponInput {
-  code: String!
-  discountType: DiscountType!
-  discountValue: Float!
-  expiresAt: DateTime
-  maxDiscountAmount: Float
-  maxUsageCount: Int
-  minOrderAmount: Float
-  usagePerUser: Int
-}
-
 input CreateDepartmentInput {
   name: String!
+  """
+  Required for SUPER_ADMIN when they want to create a department in a specific org.
+  Org admins leave this blank — their own org from the JWT is used automatically.
+  """
+  organizationId: String
 }
 
 input CreateInviteInput {
@@ -160,33 +163,25 @@ input CreatePositionInput {
   name: String!
 }
 
-input CreatePricingPlanInput {
-  description: String
-  durationMonths: Int
-  features: [String!]
-  isActive: Boolean
-  isFeatured: Boolean
-  name: String!
-  price: Float!
-}
-
 input CreateProjectInput {
   description: String
   name: String!
   organizationId: String!
 }
 
-input CreateSaleDiscountInput {
+input CreateServiceInput {
   description: String
-  discountType: DiscountType!
-  discountValue: Float!
-  endDate: DateTime!
-  isActive: Boolean
-  isAutoApply: Boolean
-  maxDiscountAmount: Float
+  domain: String!
+  githubUrl: String
+  goal: String
   name: String!
-  planId: String
-  startDate: DateTime!
+  platformLinks: [String!]
+  platforms: [String!]
+  serviceType: String
+  slug: String!
+  tags: [String!]
+  uptime: Float
+  url: String!
 }
 
 input CreateSessionInput {
@@ -218,7 +213,13 @@ input CreateTeamMemberInput {
   userId: String!
 }
 
-scalar DateTime
+"""
+Daily motivational quote — changes every UTC day, consistent within a day.
+"""
+type DailyQuote {
+  author: String!
+  text: String!
+}
 
 type Department {
   createdAt: String!
@@ -228,24 +229,65 @@ type Department {
   updatedAt: String!
 }
 
-type DiscountStats {
-  averageDiscount: Float!
-  daysRemaining: Int!
-  discount: SaleDiscount!
+type GuestApplication {
+  createdAt: String!
+  email: String!
+  githubUsername: String
+  id: ID!
+  inviteId: String
+  name: String!
+  phoneNumber: String
+  portfolioUrl: String
+  reason: String!
+  reviewedAt: String
+  reviewedBy: String
+  status: GuestApplicationStatus!
+  updatedAt: String!
+}
+
+"""
+Pre-fill data returned on the accept-invite page.
+Only name, github, portfolio — nothing sensitive.
+"""
+type GuestApplicationPrefill {
+  githubUsername: String
+  name: String!
+  portfolioUrl: String
+}
+
+enum GuestApplicationStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
+type InternalService {
+  """
+  API key used by this service to authenticate webhook calls.
+  Only returned to SUPER_ADMIN.
+  """
+  apiKey: String!
+  createdAt: String!
+  deploymentPlatform: String!
+  description: String
+  domain: String!
+  frontendFramework: String!
+  githubUrl: String
+  goal: String
+  id: ID!
   isActive: Boolean!
-  totalDiscountGiven: Float!
-  totalOrders: Int!
-}
-
-enum DiscountType {
-  FIXED_AMOUNT
-  PERCENTAGE
-}
-
-input InitiateOrderInput {
-  couponCode: String
-  planId: String!
-  redirectUrl: String
+  name: String!
+  platformLinks: [String!]!
+  platforms: [String!]!
+  proxyProvider: String!
+  serviceType: String!
+  slug: String!
+  styling: String!
+  tags: [String!]!
+  updatedAt: String!
+  uptime: Float!
+  url: String!
+  version: String!
 }
 
 """
@@ -281,6 +323,51 @@ type InviteValidationResult {
   roleId: String!
 }
 
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+"""Cached daily leaderboard pull from the Journey engine."""
+type JourneyLeaderboardSnapshot {
+  entries: JSON!
+  syncedAt: String!
+}
+
+"""
+Cached daily snapshot of a user's Journey engine (journey.godevelopers.online)
+progress — synced once/day, not real-time. Check `syncedAt` before trusting freshness.
+"""
+type JourneyProgressSnapshot {
+  """Raw GET /api/activity/:userId response, if the last sync succeeded"""
+  activity: JSON
+  """
+  Set if the most recent sync attempt for this user failed — `progress` may be stale.
+  """
+  lastSyncError: String
+  """
+  Raw GET /api/services/progress/:userId response (totalXP, currentLevel, services[], badges[], ...)
+  """
+  progress: JSON!
+  """Raw GET /api/streaks/:userId response, if the last sync succeeded"""
+  streak: JSON
+  syncedAt: String!
+  userId: String!
+}
+
+"""Result of a manually-triggered Journey sync run."""
+type JourneySyncResult {
+  failed: Int!
+  synced: Int!
+}
+
+"""Current user's position in the org leaderboard."""
+type LeaderboardRank {
+  currentStreak: Int!
+  rank: Int!
+  totalParticipants: Int!
+}
+
 input LoginInput {
   email: String!
   password: String!
@@ -290,6 +377,17 @@ input MarkAttendanceInput {
   date: String!
   organizationId: String!
   status: AttendanceStatus!
+  userId: String!
+}
+
+"""Streak info for a single org member, returned by orgMembersStreaks."""
+type MemberStreakInfo {
+  currentStreak: Int!
+  email: String!
+  freezesAvailable: Int!
+  lastActivityDate: String
+  longestStreak: Int!
+  name: String!
   userId: String!
 }
 
@@ -304,84 +402,155 @@ type Membership {
 
 type Mutation {
   acceptInvite(input: AcceptInviteInput!): AuthResponse!
+  """
+  Add a user directly to a project with a role (MANAGER, CONTRIBUTOR, VIEWER).
+  User must be an active member of the project's organization.
+  Requires org admin or super-admin.
+  """
+  addProjectMember(input: AddProjectMemberInput!): ProjectMember!
+  """
+  SUPER_ADMIN or org ADMIN — approve application.
+  Creates an invite for the provided organizationId and sends the invite email.
+  roleId is optional; defaults to VIEWER if omitted.
+  """
+  approveGuestApplication(id: ID!, organizationId: String!, roleId: String): GuestApplication!
+  """
+  Assign a team to a project. Both must belong to the same organization.
+  Pass projectId as null to detach the team from its current project.
+  Requires org admin or super-admin.
+  """
+  assignTeamToProject(input: AssignTeamToProjectInput!): Team!
+  """
+  Assign a user to a department with a specific position.
+  The position must belong to the given department.
+  User must be an active org member.
+  Requires org admin or super-admin.
+  """
+  assignUserToDepartment(input: AssignUserDepartmentInput!): UserDepartment!
   bulkMarkAttendance(input: BulkMarkAttendanceInput!): BulkAttendanceResult!
   checkIn(organizationId: String!): Attendance!
   checkOut: Attendance!
-  createCoupon(input: CreateCouponInput!): Coupon!
   createDepartment(input: CreateDepartmentInput!): Department!
   createInviteLink(input: CreateInviteInput!): CreateInviteLinkResponse!
   createMembership(input: CreateMembershipInput!): Membership!
   createOrganization(input: CreateOrganizationInput!): Organization!
   createPosition(input: CreatePositionInput!): Position!
-  createPricingPlan(input: CreatePricingPlanInput!): PricingPlan!
   createProject(input: CreateProjectInput!): Project!
-  createSaleDiscount(input: CreateSaleDiscountInput!): SaleDiscount!
+  """
+  Register a new internal service. Auto-generates an API key. SUPER_ADMIN only.
+  """
+  createService(input: CreateServiceInput!): InternalService!
   createSession(input: CreateSessionInput!): Session!
   createTask(input: CreateTaskInput!): Task!
   createTeam(input: CreateTeamInput!): Team!
   createTeamMember(input: CreateTeamMemberInput!): TeamMember!
-  deactivateCoupon(id: String!): Coupon!
-  deactivateSaleDiscount(id: String!): SaleDiscount!
   deleteDepartment(id: String!): Boolean!
+  """Revoke/delete a pending invite. Requires org ADMIN or SUPER_ADMIN."""
+  deleteInvite(inviteId: ID!): Boolean!
   deleteOrganization(id: String!): Boolean!
   deletePosition(id: String!): Boolean!
-  deletePricingPlan(id: String!): PricingPlan!
   deleteProject(id: String!): Boolean!
+  """Delete an internal service. SUPER_ADMIN only."""
+  deleteService(id: ID!): Boolean!
   deleteTask(id: String!): Boolean!
   deleteTeam(id: String!): Boolean!
   deleteTeamMember(id: String!): Boolean!
-  initiateOrder(input: InitiateOrderInput!): OrderResponse!
   login(input: LoginInput!): AuthResponse!
   logout: Boolean!
   markAttendance(input: MarkAttendanceInput!): Attendance!
+  """
+  Records a daily visit (login activity) for the authenticated user and updates their streak.
+  
+  **Idempotent per UTC day** — calling this multiple times on the same day returns the
+  existing streak state without modifying it.
+  
+  ### Streak rules
+  1. First ever call → streak starts at 1.
+  2. Called on the next consecutive day → streak increments by 1.
+  3. Exactly one day missed **and** a freeze token is available → freeze consumed, streak maintained.
+  4. Gap > 1 day (or 1-day gap with no freezes left) → streak resets to 1.
+  5. Every 7th consecutive day a freeze token is awarded (max 3 tokens).
+  
+  **Auth:** Requires a valid JWT.
+  """
   recordDailyVisit: RecordVisitResponse!
   refreshTokens: AuthResponse!
+  """
+  Rotate the API key for a service. Returns the service with the new key. SUPER_ADMIN only.
+  """
+  regenerateServiceApiKey(id: ID!): InternalService!
   register(input: RegisterInput!): AuthResponse!
-  updateCoupon(id: String!, input: UpdateCouponInput!): Coupon!
+  """SUPER_ADMIN or org ADMIN — reject application."""
+  rejectGuestApplication(id: ID!): GuestApplication!
+  """
+  Remove a member from an organization (soft-delete).
+  Requires org ADMIN or SUPER_ADMIN.
+  """
+  removeMember(input: RemoveMemberInput!): Boolean!
+  """
+  Remove a user from a project.
+  Requires org admin or super-admin.
+  """
+  removeProjectMember(id: String!): Boolean!
+  """
+  Remove a user's department assignment by its record ID.
+  Requires org admin or super-admin.
+  """
+  removeUserFromDepartment(id: String!): Boolean!
+  requestPasswordReset(input: RequestPasswordResetInput!): Boolean!
+  """
+  Resend an existing invite — regenerates the token and expiry (useful once
+  an invite has expired) and re-sends the invite email.
+  Requires org ADMIN or SUPER_ADMIN.
+  """
+  resendInviteLink(inviteId: ID!): CreateInviteLinkResponse!
+  resetPassword(input: ResetPasswordInput!): Boolean!
+  sendGlobalIdOtp(input: SendGlobalIdOtpInput!): Boolean!
+  """
+  SUPER_ADMIN only — deactivate or reactivate a user account platform-wide.
+  Deactivated users cannot log in; their memberships are left untouched
+  (reactivating restores prior access).
+  """
+  setUserActive(isActive: Boolean!, userId: ID!): User!
+  """
+  Public — anyone can submit an application to join.
+  Sends a confirmation email to the applicant.
+  """
+  submitGuestApplication(input: SubmitGuestApplicationInput!): GuestApplication!
+  """
+  Protected — Apply Service only. Requires valid x-api-key header.
+  Submits guest application from external Apply Service with idempotency support.
+  Same logic as submitGuestApplication but requires inter-service authentication.
+  """
+  submitGuestApplicationFromApplyService(input: SubmitGuestApplicationInput!): GuestApplication!
+  """
+  SUPER_ADMIN only — trigger a Journey engine sync immediately instead of
+  waiting for the daily 3 AM cron. Useful for testing or an on-demand refresh.
+  """
+  triggerJourneySync: JourneySyncResult!
   updateDepartment(id: String!, input: UpdateDepartmentInput!): Department!
+  """
+  Update a member's role within an organization.
+  Requires org ADMIN or SUPER_ADMIN.
+  """
+  updateMemberRole(input: UpdateMemberRoleInput!): Membership!
   updateOrganization(id: String!, input: UpdateOrganizationInput!): Organization!
   updatePosition(id: String!, input: UpdatePositionInput!): Position!
-  updatePricingPlan(id: String!, input: UpdatePricingPlanInput!): PricingPlan!
+  updateProfile(input: UpdateProfileInput!): UserProfile!
   updateProject(id: String!, input: UpdateProjectInput!): Project!
-  updateSaleDiscount(id: String!, input: UpdateSaleDiscountInput!): SaleDiscount!
+  """
+  Update the role of an existing project member.
+  Requires org admin or super-admin.
+  """
+  updateProjectMember(id: String!, input: UpdateProjectMemberInput!): ProjectMember!
+  """Update an existing internal service. SUPER_ADMIN only."""
+  updateService(id: ID!, input: UpdateServiceInput!): InternalService!
   updateTask(id: String!, input: UpdateTaskInput!): Task!
   updateTeam(id: String!, input: UpdateTeamInput!): Team!
   updateTeamMember(id: String!, input: UpdateTeamMemberInput!): TeamMember!
-}
-
-type Order {
-  amount: Float!
-  checkoutUrl: String
-  coupon: Coupon
-  couponId: String
-  createdAt: DateTime!
-  discountAmount: Float!
-  finalAmount: Float!
-  id: ID!
-  merchantOrderId: String!
-  metadata: String
-  paymentGatewayOrderId: String
-  plan: PricingPlan!
-  planId: String!
-  saleDiscountId: String
-  status: String!
-  transactionId: String
-  updatedAt: DateTime!
-  user: User!
-  userId: String!
-}
-
-type OrderResponse {
-  amount: Float!
-  checkoutUrl: String!
-  order: Order!
-}
-
-enum OrderStatus {
-  CANCELLED
-  FAILED
-  PENDING
-  SUCCESS
+  """SUPER_ADMIN only — promote/demote a user's platform-level systemRole."""
+  updateUserSystemRole(systemRole: SystemRole!, userId: ID!): User!
+  verifyGlobalIdOtp(input: VerifyGlobalIdOtpInput!): String!
 }
 
 type Organization {
@@ -392,43 +561,66 @@ type Organization {
   slug: String!
 }
 
+"""Pagination metadata returned alongside paginated results."""
+type PageInfo {
+  """Whether a next page exists."""
+  hasNextPage: Boolean!
+  """Whether a previous page exists."""
+  hasPreviousPage: Boolean!
+  """Items per page used for this request."""
+  limit: Int!
+  """Current page number (1-indexed)."""
+  page: Int!
+  """Total number of matching records."""
+  total: Int!
+  """Total number of pages."""
+  totalPages: Int!
+}
+
+type PaginatedDepartments {
+  data: [Department!]!
+  pageInfo: PageInfo!
+}
+
+type PaginatedProjectMembers {
+  data: [ProjectMember!]!
+  pageInfo: PageInfo!
+}
+
+type PaginatedProjects {
+  data: [Project!]!
+  pageInfo: PageInfo!
+}
+
+type PaginatedTeamMembers {
+  data: [TeamMember!]!
+  pageInfo: PageInfo!
+}
+
+type PaginatedTeams {
+  data: [Team!]!
+  pageInfo: PageInfo!
+}
+
+type PaginatedUserDepartments {
+  data: [UserDepartment!]!
+  pageInfo: PageInfo!
+}
+
+"""Offset-based pagination input. Page is 1-indexed."""
+input PaginationInput {
+  """Number of items per page. Defaults to 20, max 100."""
+  limit: Int
+  """Page number (1-indexed). Defaults to 1."""
+  page: Int
+}
+
 type Position {
   createdAt: String!
   departmentId: String!
   id: ID!
   name: String!
   updatedAt: String!
-}
-
-type PricingPlan {
-  createdAt: DateTime!
-  currency: String!
-  description: String
-  durationMonths: Int!
-  features: [String!]!
-  id: ID!
-  isActive: Boolean!
-  isFeatured: Boolean!
-  name: String!
-  price: Float!
-  updatedAt: DateTime!
-}
-
-type PricingPlanStats {
-  activeSubscriptions: Int!
-  createdAt: DateTime!
-  currency: String!
-  description: String
-  durationMonths: Int!
-  features: [String!]!
-  id: ID!
-  isActive: Boolean!
-  isFeatured: Boolean!
-  name: String!
-  price: Float!
-  totalRevenue: Float!
-  totalSubscriptions: Int!
-  updatedAt: DateTime!
 }
 
 type Project {
@@ -440,28 +632,84 @@ type Project {
   updatedAt: String!
 }
 
+type ProjectMember {
+  createdAt: String!
+  id: ID!
+  projectId: String!
+  role: ProjectRole!
+  updatedAt: String!
+  userId: String!
+}
+
+enum ProjectRole {
+  CONTRIBUTOR
+  MANAGER
+  VIEWER
+}
+
 type Query {
-  activeCoupons: [Coupon!]!
-  activeDiscounts: [SaleDiscount!]!
+  """
+  Returns the active weekly streak challenge with the authenticated user's progress.
+  Resets every Monday UTC; ends Sunday 23:59 UTC.
+  
+  **Auth:** Requires a valid JWT.
+  """
+  activeWeeklyChallenge: WeeklyChallenge!
   allDepartments: [Department!]!
+  """
+  Returns ALL registered users on the platform.
+  For use by SUPER_ADMIN or org ADMIN when selecting users to add to an org.
+  Optional search filters by name or email (case-insensitive).
+  """
+  allPlatformUsers(search: String): [User!]!
   allPositions: [Position!]!
   allProjects: [Project!]!
   allTasks: [Task!]!
   allTeams: [Team!]!
+  """Platform-wide analytics overview. SUPER_ADMIN only."""
+  analyticsOverview(range: AnalyticsRange): AnalyticsOverview!
   attendanceByOrganization(input: AttendanceFilterInput!): [Attendance!]!
   attendanceSummaryByUser(userId: String!): AttendanceSummary
-  coupon(code: String!): Coupon!
-  couponStats(id: String!): CouponStats!
-  coupons: [Coupon!]!
   currentUser: AuthUser!
+  """
+  Returns the motivational quote for today (UTC). Consistent within a UTC day.
+  
+  **Auth:** Requires a valid JWT.
+  """
+  dailyQuote: DailyQuote!
   department(id: String!): Department
+  """List all users assigned to a department. Requires org membership."""
+  departmentUsers(departmentId: String!): [UserDepartment!]!
   departmentsByOrganization(organizationId: String!): [Department!]!
-  discountStats(id: String!): DiscountStats!
-  discounts: [SaleDiscount!]!
-  featuredPricingPlans: [PricingPlan!]!
-  getAllUsers: [User!]!
-  getUserById(id: ID!): User
-  hasActiveSubscription: Boolean!
+  """
+  Paginated departments in an organization. Defaults to page 1, limit 20.
+  """
+  departmentsByOrganizationPaginated(organizationId: String!, pagination: PaginationInput): PaginatedDepartments!
+  """
+  Returns all users in an organization.
+  SUPER_ADMIN: pass orgId to query any org (falls back to token orgId).
+  Others: always uses their own org from the JWT token.
+  """
+  getAllUsers(orgId: String): [User!]!
+  """
+  Returns a single user by ID within an organization.
+  SUPER_ADMIN: pass orgId to query any org (falls back to token orgId).
+  Others: always uses their own org from the JWT token.
+  """
+  getUserById(id: ID!, orgId: String): User
+  """Get a single guest application by ID. SUPER_ADMIN or org ADMIN."""
+  guestApplication(id: ID!): GuestApplication
+  """
+  Public — returns name, github, portfolio for pre-filling the accept-invite form.
+  Uses the invite token as the lookup key.
+  Returns null if no guest application is linked to this invite.
+  """
+  guestApplicationByInviteToken(token: String!): GuestApplicationPrefill
+  """
+  List guest applications. SUPER_ADMIN or any org ADMIN.
+  Filter by status: PENDING | APPROVED | REJECTED
+  """
+  guestApplications(status: GuestApplicationStatus): [GuestApplication!]!
   """
   Fetch invites for an organization.
   - organizationId: required for non-super-admins
@@ -469,24 +717,73 @@ type Query {
   - status: "pending" | "accepted" | "expired" | "all" (default: "all")
   """
   invites(email: String, organizationId: String, status: String): [Invite!]!
+  """Cached global Journey leaderboard (updated once/day)."""
+  journeyLeaderboard: JourneyLeaderboardSnapshot
+  """
+  This user's cached Journey engine progress snapshot (updated once/day).
+  Returns null if this user has never been synced yet.
+  """
+  journeyProgress(userId: ID!): JourneyProgressSnapshot
   memberships(organizationId: String, userId: String): [Membership!]!
+  """
+  Returns the authenticated user's activity log, ordered most-recent-first.
+  
+  - `limit`: cap on records returned (max 100, default 50).
+  
+  **Auth:** Requires a valid JWT.
+  """
   myActivities(limit: Int): [UserActivity!]!
   myAttendance(endDate: String, startDate: String): [Attendance!]!
   myAttendanceSummary: AttendanceSummary
+  """
+  Returns the authenticated user's rank within the org leaderboard.
+  
+  **Auth:** Requires a valid JWT. Caller must be a member of the org or SUPER_ADMIN.
+  """
+  myLeaderboardRank(organizationId: String): LeaderboardRank!
+  """
+  Returns the authenticated user's role in the given organization.
+  Returns null if the user is not a member.
+  """
+  myOrgRole(organizationId: String!): UserOrgRole
+  myProfile: UserProfile!
+  """
+  Returns the authenticated user's current streak and freeze token state.
+  
+  **Auth:** Requires a valid JWT.
+  """
   myStreak: UserStreakInfo!
-  mySubscription: Subscription
-  order(id: String!): Order!
+  """
+  Returns streak info for all active members of an organization.
+  Sorted by currentStreak descending (leaderboard order).
+  
+  **Auth:** Requires a valid JWT. Caller must be ADMIN of the org or SUPER_ADMIN.
+  """
+  orgMembersStreaks(organizationId: String!): [MemberStreakInfo!]!
+  """
+  Returns all roles available in an organization.
+  Requires org ADMIN or SUPER_ADMIN.
+  """
+  orgRoles(organizationId: String!): [Role!]!
   organization(id: String!): Organization
   organizations: [Organization]
-  planDiscount(planId: String!): SaleDiscount
   position(id: String!): Position
   positionsByDepartment(departmentId: String!): [Position!]!
   positionsByOrganization(organizationId: String!): [Position!]!
-  pricingPlan(id: String!): PricingPlan!
-  pricingPlanStats(id: String!): PricingPlanStats!
-  pricingPlans: [PricingPlan!]!
   project(id: String!): Project
+  """List all members of a project. Requires org membership."""
+  projectMembers(projectId: String!): [ProjectMember!]!
+  """List all projects a user is a direct member of within an organization."""
+  projectMembersByUser(organizationId: String!, userId: String!): [ProjectMember!]!
   projectsByOrganization(organizationId: String!): [Project!]!
+  """Paginated projects in an organization. Defaults to page 1, limit 20."""
+  projectsByOrganizationPaginated(organizationId: String!, pagination: PaginationInput): PaginatedProjects!
+  """Get a single internal service by ID. SUPER_ADMIN only."""
+  service(id: ID!): InternalService
+  """Analytics for a single InternalService. SUPER_ADMIN only."""
+  serviceAnalytics(range: AnalyticsRange, serviceId: ID!): ServiceAnalytics!
+  """List all registered internal services. SUPER_ADMIN only."""
+  services: [InternalService!]!
   sessions(userId: String): [Session!]!
   task(id: String!): Task
   tasksByAssignedTeam(teamId: String!): [Task!]!
@@ -496,49 +793,62 @@ type Query {
   team(id: String!): Team
   teamMember(id: String!): TeamMember
   teamMembersByTeam(teamId: String!): [TeamMember!]!
+  """Paginated members of a team. Defaults to page 1, limit 20."""
+  teamMembersByTeamPaginated(pagination: PaginationInput!, teamId: String!): PaginatedTeamMembers!
   teamMembersByUser(organizationId: String!, userId: String!): [TeamMember!]!
   teamsByOrganization(organizationId: String!): [Team!]!
+  """Paginated teams in an organization. Defaults to page 1, limit 20."""
+  teamsByOrganizationPaginated(organizationId: String!, pagination: PaginationInput): PaginatedTeams!
   teamsByProject(projectId: String!): [Team!]!
+  """
+  Returns the top N streakers in an organization, ranked by currentStreak desc.
+  limit: max results (1–50, default 10).
+  
+  **Auth:** Requires a valid JWT. Caller must be a member of the org or SUPER_ADMIN.
+  """
+  topStreakers(limit: Int, organizationId: String): [StreakLeaderEntry!]!
+  """
+  Returns the activity log for any user by ID, ordered most-recent-first.
+  
+  - `input.limit`: cap on records returned (max 100, default 50).
+  
+  **Auth:** Requires a valid JWT with super-admin role.
+  """
   userActivities(input: UserActivitiesInput!): [UserActivity!]!
-  userOrders(status: String): [Order!]!
+  """List all department assignments for a user. Requires org membership."""
+  userDepartments(userId: String!): [UserDepartment!]!
+  """
+  Returns any user's role in a given organization.
+  Requires org admin or super-admin.
+  Returns null if the user is not a member.
+  """
+  userOrgRole(organizationId: String!, userId: String!): UserOrgRole
+  """
+  Returns the streak info for any user by ID.
+  
+  **Auth:** Requires a valid JWT with super-admin role.
+  
+  Returns `null` if the user has no streak record yet.
+  """
   userStreak(userId: String!): UserStreakInfo
-  validateCoupon(input: ValidateCouponInput!): CouponValidation!
   validateInvite(token: String!): InviteValidationResult!
 }
 
+"""Response returned by the recordDailyVisit mutation."""
 type RecordVisitResponse {
+  """
+  True when the streak milestone (every 7 days) was reached and a new freeze was awarded.
+  """
   freezeEarned: Boolean!
+  """True when a freeze token was consumed to bridge a single missed day."""
   freezeUsed: Boolean!
+  """
+  True when this call represents a new calendar day (UTC) compared to the last visit.
+  False when the user already visited today (idempotent call).
+  """
   isNewDay: Boolean!
+  """The user's updated streak information after the visit is recorded."""
   streak: UserStreakInfo!
-}
-
-type Refund {
-  amount: Float!
-  completedAt: DateTime
-  createdAt: DateTime!
-  id: ID!
-  initiatedAt: DateTime!
-  order: Order!
-  orderId: String!
-  reason: String
-  refundId: String!
-  status: String!
-  transactionId: String
-  updatedAt: DateTime!
-  user: User!
-  userId: String!
-}
-
-input RefundOrderInput {
-  reason: String
-}
-
-enum RefundStatus {
-  FAILED
-  INITIATED
-  PENDING
-  SUCCESS
 }
 
 input RegisterInput {
@@ -547,20 +857,52 @@ input RegisterInput {
   password: String!
 }
 
-type SaleDiscount {
-  createdAt: DateTime!
+input RemoveMemberInput {
+  organizationId: String!
+  """The member to remove from the organization"""
+  userId: String!
+}
+
+input RequestPasswordResetInput {
+  email: String!
+}
+
+input ResetPasswordInput {
+  newPassword: String!
+  token: String!
+}
+
+type Role {
+  createdAt: String!
   description: String
-  discountType: String!
-  discountValue: Float!
-  endDate: DateTime!
   id: ID!
-  isActive: Boolean!
-  isAutoApply: Boolean!
-  maxDiscountAmount: Float
+  isSystemRole: Boolean!
   name: String!
-  planId: String
-  startDate: DateTime!
-  updatedAt: DateTime!
+  organizationId: String
+}
+
+input SendGlobalIdOtpInput {
+  email: String!
+}
+
+type ServiceAnalytics {
+  pageviews: Int!
+  serviceId: ID!
+  serviceName: String!
+  sessions: Int!
+  timeseries: [AnalyticsTimePoint!]!
+  topPages: [TopPage!]!
+  topReferrers: [TopReferrer!]!
+  uniqueVisitors: Int!
+}
+
+type ServiceAnalyticsRow {
+  lastSeenAt: String
+  pageviews: Int!
+  serviceId: ID!
+  serviceName: String!
+  sessions: Int!
+  uniqueVisitors: Int!
 }
 
 type Session {
@@ -577,26 +919,27 @@ input SingleAttendanceEntry {
   userId: String!
 }
 
-type Subscription {
-  autoRenew: Boolean!
-  createdAt: DateTime!
-  endDate: DateTime
-  id: ID!
-  lastOrderId: String
-  plan: PricingPlan!
-  planId: String!
-  startDate: DateTime!
-  status: String!
-  updatedAt: DateTime!
-  user: User!
+"""
+Single entry in the streak leaderboard.
+rankChange: "up" | "down" | "same" — based on whether user is at their personal best.
+"""
+type StreakLeaderEntry {
+  currentStreak: Int!
+  rank: Int!
+  rankChange: String!
+  userAvatarUrl: String
   userId: String!
+  userName: String!
 }
 
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELLED
-  EXPIRED
-  INACTIVE
+input SubmitGuestApplicationInput {
+  email: String!
+  githubUsername: String
+  idempotencyKey: String
+  name: String!
+  phoneNumber: String
+  portfolioUrl: String
+  reason: String!
 }
 
 enum SystemRole {
@@ -650,17 +993,27 @@ enum TeamRole {
   MEMBER
 }
 
-input UpdateCouponInput {
-  discountValue: Float
-  expiresAt: DateTime
-  maxDiscountAmount: Float
-  maxUsageCount: Int
-  minOrderAmount: Float
-  usagePerUser: Int
+type TopPage {
+  pageviews: Int!
+  path: String!
+  uniqueVisitors: Int!
+}
+
+type TopReferrer {
+  count: Int!
+  referrer: String!
 }
 
 input UpdateDepartmentInput {
   name: String
+}
+
+input UpdateMemberRoleInput {
+  organizationId: String!
+  """The new role to assign"""
+  roleId: String!
+  """The member whose role should be changed"""
+  userId: String!
 }
 
 input UpdateOrganizationInput {
@@ -671,14 +1024,26 @@ input UpdatePositionInput {
   name: String
 }
 
-input UpdatePricingPlanInput {
-  description: String
-  durationMonths: Int
-  features: [String!]
-  isActive: Boolean
-  isFeatured: Boolean
+"""
+All fields are optional — only provided fields are updated.
+name updates the User record; everything else updates UserDetails.
+dob: ISO date string e.g. "1995-01-15"
+"""
+input UpdateProfileInput {
+  address: String
+  avatarUrl: String
+  bio: String
+  dob: String
+  gfgUsername: String
+  githubUsername: String
+  instagramUrl: String
+  leetcodeUsername: String
+  linkedInUrl: String
   name: String
-  price: Float
+  phoneNumber: String
+  portfolioUrl: String
+  profilePicUrl: String
+  title: String
 }
 
 input UpdateProjectInput {
@@ -686,15 +1051,20 @@ input UpdateProjectInput {
   name: String
 }
 
-input UpdateSaleDiscountInput {
+input UpdateProjectMemberInput {
+  role: ProjectRole!
+}
+
+input UpdateServiceInput {
   description: String
-  discountValue: Float
-  endDate: DateTime
+  githubUrl: String
+  goal: String
   isActive: Boolean
-  isAutoApply: Boolean
-  maxDiscountAmount: Float
   name: String
-  startDate: DateTime
+  platformLinks: [String!]
+  platforms: [String!]
+  uptime: Float
+  url: String
 }
 
 input UpdateTaskInput {
@@ -727,31 +1097,122 @@ type User {
   updatedAt: String!
 }
 
+"""Input for querying another user's activity log (super-admin only)."""
 input UserActivitiesInput {
+  """Maximum number of records to return. Capped at 100; defaults to 50."""
   limit: Int
+  """UUID of the user whose activity log is being requested."""
   userId: String!
 }
 
+"""A single activity event recorded for a user."""
 type UserActivity {
+  """The type of action the user performed (e.g. LOGIN, TASK_UPDATE)."""
   activityType: ActivityType!
+  """ISO-8601 timestamp of when the activity was recorded (UTC)."""
   createdAt: String!
   id: String!
   userId: String!
 }
 
-type UserStreakInfo {
+"""
+Junction record linking a user to a department and position within that department.
+"""
+type UserDepartment {
   createdAt: String!
-  currentStreak: Int!
-  freezeUsedDate: String
-  freezesAvailable: Int!
-  id: String!
-  lastActivityDate: String
-  longestStreak: Int!
+  departmentId: String!
+  id: ID!
+  positionId: String!
   updatedAt: String!
   userId: String!
 }
 
-input ValidateCouponInput {
-  code: String!
-  orderAmount: Float!
+type UserDetails {
+  address: String
+  avatarUrl: String
+  bio: String
+  createdAt: String!
+  dob: String
+  gfgUsername: String
+  githubUsername: String
+  id: String!
+  instagramUrl: String
+  leetcodeUsername: String
+  linkedInUrl: String
+  phoneNumber: String
+  portfolioUrl: String
+  profilePicUrl: String
+  title: String
+  updatedAt: String!
+  userId: String!
+}
+
+"""A user's role details within a specific organization."""
+type UserOrgRole {
+  isSystemRole: Boolean!
+  joinedAt: String!
+  membershipId: ID!
+  organizationId: String!
+  roleDescription: String
+  roleId: String!
+  """Human-readable name of the role (e.g. ADMIN, VIEWER, MEMBER)."""
+  roleName: String!
+  userId: String!
+}
+
+type UserProfile {
+  createdAt: String!
+  details: UserDetails
+  email: String!
+  id: ID!
+  name: String!
+  systemRole: SystemRole!
+  updatedAt: String!
+}
+
+"""Streak and freeze token state for a user."""
+type UserStreakInfo {
+  """ISO-8601 timestamp of when this streak record was first created."""
+  createdAt: String!
+  """
+  Number of consecutive days the user has been active (including freeze-saved days).
+  """
+  currentStreak: Int!
+  """
+  ISO-8601 date a freeze was last consumed. Null if no freeze has been used.
+  """
+  freezeUsedDate: String
+  """
+  Number of streak-freeze tokens available. Max 3; earned every 7 consecutive days.
+  """
+  freezesAvailable: Int!
+  id: String!
+  """
+  ISO-8601 date of the user's most recent activity day (UTC midnight). Null if never active.
+  """
+  lastActivityDate: String
+  """The highest streak the user has ever achieved."""
+  longestStreak: Int!
+  """ISO-8601 timestamp of the last update to this streak record."""
+  updatedAt: String!
+  userId: String!
+}
+
+input VerifyGlobalIdOtpInput {
+  email: String!
+  otp: String!
+}
+
+"""
+Active weekly challenge. endsAt is always end-of-week (Sunday 23:59 UTC).
+myProgress reflects the authenticated user's current streak capped at targetDays.
+"""
+type WeeklyChallenge {
+  badgeName: String!
+  description: String!
+  endsAt: String!
+  id: String!
+  myProgress: Int!
+  targetDays: Int!
+  title: String!
 }

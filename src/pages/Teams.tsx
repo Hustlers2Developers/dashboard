@@ -5,8 +5,12 @@ import { useAuthStore } from "@/stores/auth-store";
 import {
   GET_TEAMS_BY_ORG,
   CREATE_TEAM,
+  UPDATE_TEAM,
   DELETE_TEAM,
   GET_TEAM_MEMBERS,
+  CREATE_TEAM_MEMBER,
+  UPDATE_TEAM_MEMBER,
+  DELETE_TEAM_MEMBER,
 } from "@/graphql/mutations/teams";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { Team, TeamMember } from "@/graphql/graphql";
@@ -27,6 +31,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -44,6 +55,8 @@ import {
   ChevronDown,
   ChevronUp,
   Mail,
+  Pencil,
+  UserPlus,
 } from "lucide-react";
 
 type AppUser = { id: string; name?: string | null; email: string };
@@ -51,54 +64,220 @@ type AppUser = { id: string; name?: string | null; email: string };
 const TeamMembersList = ({
   teamId,
   usersMap,
+  availableUsers,
 }: {
   teamId: string;
   usersMap: Map<string, AppUser>;
+  availableUsers: AppUser[];
 }) => {
-  const { data, loading } = useQuery<
+  const { data, loading, refetch } = useQuery<
     { teamMembersByTeam: TeamMember[] },
     { teamId: string }
   >(GET_TEAM_MEMBERS, { variables: { teamId } });
 
-  const members = data?.teamMembersByTeam || [];
+  const [addOpen, setAddOpen] = useState(false);
+  const [addUserId, setAddUserId] = useState("");
+  const [addRole, setAddRole] = useState<"MEMBER" | "LEAD">("MEMBER");
+  const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
 
-  if (loading) return <Skeleton className="h-8 w-full" />;
-  if (members.length === 0)
-    return <p className="text-sm text-muted-foreground">No members yet</p>;
+  const [createTeamMember, { loading: adding }] = useMutation(CREATE_TEAM_MEMBER);
+  const [updateTeamMember] = useMutation(UPDATE_TEAM_MEMBER);
+  const [deleteTeamMember, { loading: removing }] = useMutation(DELETE_TEAM_MEMBER);
+
+  const members = useMemo(() => data?.teamMembersByTeam || [], [data]);
+  const memberUserIds = useMemo(() => new Set(members.map((m) => m.userId)), [members]);
+  const pickableUsers = useMemo(
+    () => availableUsers.filter((u) => !memberUserIds.has(u.id)),
+    [availableUsers, memberUserIds],
+  );
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addUserId) {
+      toast.error("Pick a user to add.");
+      return;
+    }
+    try {
+      await createTeamMember({
+        variables: { input: { teamId, userId: addUserId, role: addRole } },
+      });
+      toast.success("Member added to team.");
+      setAddOpen(false);
+      setAddUserId("");
+      setAddRole("MEMBER");
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to add member.");
+    }
+  };
+
+  const handleRoleToggle = async (member: TeamMember) => {
+    const nextRole = member.role === "LEAD" ? "MEMBER" : "LEAD";
+    try {
+      await updateTeamMember({ variables: { id: member.id, input: { role: nextRole } } });
+      toast.success(`Role updated to ${nextRole}.`);
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to update role.");
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!removeTarget) return;
+    try {
+      await deleteTeamMember({ variables: { id: removeTarget.id } });
+      toast.success("Member removed from team.");
+      setRemoveTarget(null);
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to remove member.");
+    }
+  };
 
   return (
-    <div className="space-y-2">
-      {members.map((m: TeamMember) => {
-        const user = usersMap.get(m.userId);
-        const display = user?.name || user?.email || "Unknown User";
-        const initials = display
-          .split(/[\s@.]+/)
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((p: string) => p[0]?.toUpperCase())
-          .join("");
-        return (
-          <div
-            key={m.id}
-            className="flex items-center justify-between rounded-md bg-background p-2"
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                {initials}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground">
+          {members.length} member{members.length === 1 ? "" : "s"}
+        </p>
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline">
+              <UserPlus className="mr-2 h-3.5 w-3.5" />
+              Add member
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add team member</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAdd} className="space-y-4">
+              <div className="space-y-2">
+                <Label>User</Label>
+                <Select value={addUserId} onValueChange={setAddUserId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pickableUsers.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Everyone in the org is already on this team.
+                      </div>
+                    ) : (
+                      pickableUsers.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name ? `${u.name} (${u.email})` : u.email}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{display}</p>
-                {user?.name && user.email && (
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                )}
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={addRole} onValueChange={(v) => setAddRole(v as "MEMBER" | "LEAD")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MEMBER">Member</SelectItem>
+                    <SelectItem value="LEAD">Lead</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {m.role}
-            </Badge>
-          </div>
-        );
-      })}
+              <LoadingButton
+                type="submit"
+                className="w-full gold-gradient text-primary-foreground"
+                loading={adding}
+                loadingText="Adding..."
+                disabled={!addUserId}
+              >
+                Add member
+              </LoadingButton>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-8 w-full" />
+      ) : members.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No members yet</p>
+      ) : (
+        <div className="space-y-2">
+          {members.map((m: TeamMember) => {
+            const user = usersMap.get(m.userId);
+            const display = user?.name || user?.email || "Unknown User";
+            const initials = display
+              .split(/[\s@.]+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((p: string) => p[0]?.toUpperCase())
+              .join("");
+            return (
+              <div
+                key={m.id}
+                className="flex items-center justify-between rounded-md bg-background p-2"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {initials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{display}</p>
+                    {user?.name && user.email && (
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleRoleToggle(m)}
+                    title="Toggle role"
+                    className="rounded"
+                  >
+                    <Badge variant="secondary" className="text-xs hover:bg-secondary/70">
+                      {m.role}
+                    </Badge>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setRemoveTarget(m)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <AlertDialog open={!!removeTarget} onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {usersMap.get(removeTarget?.userId || "")?.name ||
+                usersMap.get(removeTarget?.userId || "")?.email ||
+                "This member"}{" "}
+              will be removed from the team.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={removing}
+              onClick={() => void handleRemove()}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
@@ -110,6 +289,8 @@ const Teams = () => {
   const [name, setName] = useState("");
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
+  const [editTarget, setEditTarget] = useState<Team | null>(null);
+  const [editName, setEditName] = useState("");
 
   const { data, loading, refetch } = useQuery<
     { teamsByOrganization: Team[] },
@@ -124,7 +305,7 @@ const Teams = () => {
 
   const { data: usersData } = useQuery<{ getAllUsers: AppUser[] }>(
     GET_ALL_USERS,
-    { skip: !orgId, fetchPolicy: "cache-and-network" },
+    { skip: !orgId, fetchPolicy: "cache-first" },
   );
 
   const usersMap = useMemo(() => {
@@ -133,10 +314,36 @@ const Teams = () => {
     return map;
   }, [usersData]);
 
+  const availableUsers = useMemo(() => [...usersMap.values()], [usersMap]);
+
   const [createTeam, { loading: creating }] = useMutation(CREATE_TEAM);
+  const [updateTeam, { loading: savingEdit }] = useMutation(UPDATE_TEAM);
   const [deleteTeam] = useMutation(DELETE_TEAM);
 
   const teams = data?.teamsByOrganization || [];
+
+  const openEditDialog = (team: Team) => {
+    setEditTarget(team);
+    setEditName(team.name);
+  };
+
+  const closeEditDialog = () => {
+    setEditTarget(null);
+    setEditName("");
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget || !editName.trim()) return;
+    try {
+      await updateTeam({ variables: { id: editTarget.id, input: { name: editName } } });
+      toast.success("Team updated.");
+      closeEditDialog();
+      refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update team.");
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -287,6 +494,14 @@ const Teams = () => {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                      onClick={() => openEditDialog(team)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteTarget(team)}
                     >
@@ -299,7 +514,11 @@ const Teams = () => {
                     <h5 className="mb-2 text-sm font-medium text-foreground">
                       Members
                     </h5>
-                    <TeamMembersList teamId={team.id} usersMap={usersMap} />
+                    <TeamMembersList
+                      teamId={team.id}
+                      usersMap={usersMap}
+                      availableUsers={availableUsers}
+                    />
                   </CardContent>
                 )}
               </Card>
@@ -327,6 +546,33 @@ const Teams = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) closeEditDialog(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit team</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Team Name</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. Frontend Team"
+                required
+              />
+            </div>
+            <LoadingButton
+              type="submit"
+              className="w-full gold-gradient text-primary-foreground"
+              loading={savingEdit}
+              loadingText="Saving..."
+            >
+              Save changes
+            </LoadingButton>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

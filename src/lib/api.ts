@@ -2,7 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getAccessToken, clearToken } from '@/lib/auth/token-manager';
 import { emitAuthEvent } from '@/lib/auth-events';
 
-const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.online/graphql';
+const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.space/graphql';
 
 export const apiClient = axios.create({
   baseURL: GRAPHQL_URL,

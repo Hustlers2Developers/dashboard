@@ -2,11 +2,52 @@ import { useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { GET_PROJECTS_BY_ORG } from "@/graphql/mutations/projects";
 import { GET_TEAMS_BY_ORG } from "@/graphql/mutations/teams";
+import { MY_STREAK, TOP_STREAKERS } from "@/graphql/mutations/attendance";
 import { Project, Team } from "@/graphql/graphql";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderKanban, Users, Activity, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  FolderKanban,
+  Users,
+  Activity,
+  TrendingUp,
+  Flame,
+  Snowflake,
+  Trophy,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+} from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+
+type StreakInfo = {
+  currentStreak: number;
+  longestStreak: number;
+  freezesAvailable: number;
+  lastActivityDate?: string | null;
+};
+
+type StreakLeaderEntry = {
+  rank: number;
+  userId: string;
+  userName: string;
+  userAvatarUrl?: string | null;
+  currentStreak: number;
+  rankChange: string;
+};
+
+// The backend returns rankChange as a plain string, not a documented enum,
+// so this matches loosely (case-insensitive, common synonyms) rather than
+// assuming one exact literal value.
+const RankChangeIcon = ({ value }: { value: string }) => {
+  const v = value?.toLowerCase() ?? "";
+  if (v.includes("up") || v.startsWith("+"))
+    return <ArrowUp className="h-3.5 w-3.5 text-emerald-500" />;
+  if (v.includes("down") || v.startsWith("-"))
+    return <ArrowDown className="h-3.5 w-3.5 text-destructive" />;
+  return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
+};
 
 const Dashboard = () => {
   const user = useAuthStore((s) => s.user);
@@ -28,8 +69,20 @@ const Dashboard = () => {
     skip: !orgId,
   });
 
+  const { data: streakData, loading: streakLoading } = useQuery<{ myStreak: StreakInfo }>(
+    MY_STREAK,
+  );
+  const { data: leaderboardData, loading: leaderboardLoading } = useQuery<{
+    topStreakers: StreakLeaderEntry[];
+  }>(TOP_STREAKERS, {
+    variables: { organizationId: orgId, limit: 5 },
+    skip: !orgId,
+  });
+
   const projects = projectsData?.projectsByOrganization || [];
   const teams = teamsData?.teamsByOrganization || [];
+  const myStreak = streakData?.myStreak;
+  const topStreakers = leaderboardData?.topStreakers ?? [];
 
   const stats = [
     {
@@ -87,6 +140,84 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Streak + Leaderboard */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Your streak
+              </CardTitle>
+              <Flame className="h-5 w-5 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              {streakLoading ? (
+                <Skeleton className="h-16 w-full" />
+              ) : myStreak ? (
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-foreground">
+                      {myStreak.currentStreak}
+                    </span>
+                    <span className="text-sm text-muted-foreground">day streak</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>Best: {myStreak.longestStreak}</span>
+                    <span className="flex items-center gap-1">
+                      <Snowflake className="h-3 w-3 text-sky-500" />
+                      {myStreak.freezesAvailable} freeze{myStreak.freezesAvailable === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No activity yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border lg:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500" />
+                Top streakers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {leaderboardLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+                </div>
+              ) : topStreakers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No streak data yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {topStreakers.map((entry) => (
+                    <div
+                      key={entry.userId}
+                      className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Badge variant="secondary" className="w-7 justify-center text-xs">
+                          #{entry.rank}
+                        </Badge>
+                        <span className="text-sm font-medium text-foreground">
+                          {entry.userName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RankChangeIcon value={entry.rankChange} />
+                        <span className="flex items-center gap-1 text-sm text-foreground">
+                          <Flame className="h-3.5 w-3.5 text-orange-500" />
+                          {entry.currentStreak}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Recent Projects */}

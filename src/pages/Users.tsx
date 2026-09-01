@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { GET_ALL_USERS } from "@/graphql/mutations/users";
+import {
+  GET_ALL_USERS,
+  SET_USER_ACTIVE,
+  UPDATE_USER_SYSTEM_ROLE,
+} from "@/graphql/mutations/users";
 import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
 import {
   CREATE_MEMBERSHIP,
@@ -49,9 +53,22 @@ import {
   AlertCircle,
   Search,
   ShieldCheck,
+  ShieldOff,
+  UserCog,
   UserPlus,
+  UserX,
   Users as UsersIcon,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type AppUser = {
   id: string;
@@ -112,6 +129,10 @@ const Users = () => {
   const [activeUser, setActiveUser] = useState<AppUser | null>(null);
   const [assignOrgId, setAssignOrgId] = useState<string>(me?.orgId || "");
   const [assignRoleId, setAssignRoleId] = useState<string>("");
+  const [deactivateTarget, setDeactivateTarget] = useState<AppUser | null>(null);
+  // The live User type doesn't expose isActive, so deactivation state is
+  // tracked client-side per-session once toggled via setUserActive.
+  const [deactivatedIds, setDeactivatedIds] = useState<Set<string>>(new Set());
 
   const {
     data: usersData,
@@ -119,7 +140,9 @@ const Users = () => {
     error: usersError,
     refetch: refetchUsers,
   } = useQuery<{ getAllUsers: AppUser[] }>(GET_ALL_USERS, {
-    fetchPolicy: "cache-and-network",
+    // cache-first: this page has an explicit "Refresh" button for on-demand
+    // freshness — no need to hit the DB again on every mount.
+    fetchPolicy: "cache-first",
   });
 
   const { data: orgsData, loading: loadingOrgs } = useQuery<{
@@ -133,7 +156,7 @@ const Users = () => {
   } = useQuery<{ memberships: Membership[] }>(GET_MEMBERSHIPS, {
     variables: { organizationId: me?.orgId },
     skip: !me?.orgId,
-    fetchPolicy: "cache-and-network",
+    fetchPolicy: "cache-first",
   });
 
   const { data: rolesData, loading: loadingRoles, error: rolesError } = useQuery<{
@@ -145,6 +168,9 @@ const Users = () => {
 
   const [createMembership, { loading: creatingMembership }] =
     useMutation(CREATE_MEMBERSHIP);
+  const [setUserActive, { loading: togglingActive }] = useMutation(SET_USER_ACTIVE);
+  const [updateUserSystemRole] = useMutation(UPDATE_USER_SYSTEM_ROLE);
+  const [changingRoleId, setChangingRoleId] = useState<string | null>(null);
 
   const users = useMemo(() => usersData?.getAllUsers ?? [], [usersData]);
   const organizations = useMemo(
@@ -227,6 +253,46 @@ const Users = () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to add member.";
       toast.error(message);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    if (!deactivateTarget) return;
+    const nextActive = deactivatedIds.has(deactivateTarget.id);
+    try {
+      await setUserActive({
+        variables: { userId: deactivateTarget.id, isActive: nextActive },
+      });
+      setDeactivatedIds((prev) => {
+        const next = new Set(prev);
+        if (nextActive) next.delete(deactivateTarget.id);
+        else next.add(deactivateTarget.id);
+        return next;
+      });
+      toast.success(
+        nextActive
+          ? `${deactivateTarget.name || deactivateTarget.email} reactivated.`
+          : `${deactivateTarget.name || deactivateTarget.email} deactivated. Their sessions were terminated.`,
+      );
+      setDeactivateTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to update account status.");
+    }
+  };
+
+  const handleToggleSystemRole = async (targetUser: AppUser) => {
+    const nextRole = targetUser.systemRole === "SUPER_ADMIN" ? "USER" : "SUPER_ADMIN";
+    setChangingRoleId(targetUser.id);
+    try {
+      await updateUserSystemRole({
+        variables: { userId: targetUser.id, systemRole: nextRole },
+      });
+      toast.success(`${targetUser.name || targetUser.email} is now ${nextRole === "SUPER_ADMIN" ? "a SUPER_ADMIN" : "a standard USER"}.`);
+      await refetchUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to update system role.");
+    } finally {
+      setChangingRoleId(null);
     }
   };
 
@@ -355,6 +421,7 @@ const Users = () => {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>System role</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Memberships in your org</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -389,6 +456,17 @@ const Users = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
+                          {deactivatedIds.has(user.id) ? (
+                            <Badge variant="outline" className="border-destructive/40 text-destructive">
+                              Deactivated
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-emerald-500/40 text-emerald-700">
+                              Active
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           {loadingMemberships ? (
                             <Skeleton className="h-5 w-24" />
                           ) : inMyOrg ? (
@@ -405,24 +483,72 @@ const Users = () => {
                           {formatDate(user.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => openAssign(user)}
-                                  disabled={user.id === me?.sub}
-                                >
-                                  <UserPlus className="mr-2 h-4 w-4" />
-                                  Add to org
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            {user.id === me?.sub ? (
-                              <TooltipContent>You can&apos;t reassign yourself.</TooltipContent>
-                            ) : null}
-                          </Tooltip>
+                          <div className="flex justify-end gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openAssign(user)}
+                                    disabled={user.id === me?.sub}
+                                  >
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Add to org
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {user.id === me?.sub ? (
+                                <TooltipContent>You can&apos;t reassign yourself.</TooltipContent>
+                              ) : null}
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleToggleSystemRole(user)}
+                                    disabled={user.id === me?.sub || changingRoleId === user.id}
+                                  >
+                                    <UserCog className="mr-2 h-4 w-4" />
+                                    {user.systemRole === "SUPER_ADMIN" ? "Demote" : "Promote"}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {user.id === me?.sub ? (
+                                <TooltipContent>You can&apos;t change your own role.</TooltipContent>
+                              ) : null}
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className={deactivatedIds.has(user.id) ? "" : "text-destructive hover:text-destructive"}
+                                    onClick={() => setDeactivateTarget(user)}
+                                    disabled={user.id === me?.sub}
+                                  >
+                                    {deactivatedIds.has(user.id) ? (
+                                      <>
+                                        <ShieldCheck className="mr-2 h-4 w-4" />
+                                        Reactivate
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserX className="mr-2 h-4 w-4" />
+                                        Deactivate
+                                      </>
+                                    )}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {user.id === me?.sub ? (
+                                <TooltipContent>You can&apos;t deactivate yourself.</TooltipContent>
+                              ) : null}
+                            </Tooltip>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -511,6 +637,46 @@ const Users = () => {
             </form>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog
+          open={!!deactivateTarget}
+          onOpenChange={(o) => { if (!o) setDeactivateTarget(null); }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {deactivateTarget && deactivatedIds.has(deactivateTarget.id)
+                  ? "Reactivate this account?"
+                  : "Deactivate this account?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {deactivateTarget && deactivatedIds.has(deactivateTarget.id) ? (
+                  <>
+                    <strong>{deactivateTarget?.name || deactivateTarget?.email}</strong> will regain access and be able to log in again.
+                  </>
+                ) : (
+                  <>
+                    <strong>{deactivateTarget?.name || deactivateTarget?.email}</strong> will be signed out immediately and won&apos;t be able to log in until reactivated. Their memberships are left untouched.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className={
+                  deactivateTarget && deactivatedIds.has(deactivateTarget.id)
+                    ? "gold-gradient text-primary-foreground"
+                    : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                }
+                disabled={togglingActive}
+                onClick={() => void handleToggleActive()}
+              >
+                {deactivateTarget && deactivatedIds.has(deactivateTarget.id) ? "Reactivate" : "Deactivate"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

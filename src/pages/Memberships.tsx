@@ -3,9 +3,9 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
+import { ALL_PLATFORM_USERS } from "@/graphql/mutations/users";
 import {
   CREATE_MEMBERSHIP,
-  GET_ALL_USERS,
   GET_MEMBERSHIPS,
   GET_ORG_ROLES,
   REMOVE_MEMBER,
@@ -86,7 +86,6 @@ type AppUser = {
   email: string;
   systemRole: string;
   createdAt: string;
-  updatedAt: string;
 };
 
 function parseDate(value?: string | null) {
@@ -155,7 +154,10 @@ const Memberships = () => {
       userId: undefined,
     },
     skip: !selectedOrgId,
-    fetchPolicy: "network-only",
+    // cache-first: refetchMemberships() is already called explicitly after
+    // every create/update/remove mutation on this page, so a forced network
+    // hit on every mount/org-switch isn't needed for correctness.
+    fetchPolicy: "cache-first",
   });
 
   const {
@@ -168,8 +170,12 @@ const Memberships = () => {
     skip: !selectedOrgId,
   });
 
-  const { data: usersData, loading: loadingUsers } = useQuery<{ getAllUsers: AppUser[] }>(
-    GET_ALL_USERS,
+  // Platform-wide user list — needed because the "add member" picker must be
+  // able to surface any registered user regardless of which org is currently
+  // selected, not just users already in the admin's own org (getAllUsers
+  // would only return members of the caller's own org here).
+  const { data: usersData, loading: loadingUsers } = useQuery<{ allPlatformUsers: AppUser[] }>(
+    ALL_PLATFORM_USERS,
     {
       skip: !isSuperAdmin,
     },
@@ -184,7 +190,7 @@ const Memberships = () => {
     [membershipsData],
   );
   const roles = useMemo(() => rolesData?.orgRoles ?? [], [rolesData]);
-  const users = useMemo(() => usersData?.getAllUsers ?? [], [usersData]);
+  const users = useMemo(() => usersData?.allPlatformUsers ?? [], [usersData]);
 
   const alreadyMemberIds = useMemo(
     () => new Set(memberships.filter((m) => m.isActive).map((m) => m.userId)),

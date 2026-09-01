@@ -6,7 +6,7 @@ import { getAccessToken as getToken, setAccessToken as setToken, clearToken } fr
 import { useAuthStore } from '@/stores/auth-store';
 import { emitAuthEvent } from '@/lib/auth-events';
 
-const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.online/graphql';
+const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'https://api.godevelopers.space/graphql';
 
 // Prevent concurrent refresh calls — queue pending resolvers
 let isRefreshing = false;
@@ -14,7 +14,7 @@ let pendingResolvers: Array<{ resolve: (token: string) => void; reject: (error: 
 
 const httpLink = createHttpLink({ uri: GRAPHQL_URL, credentials: 'include' });
 
-const PUBLIC_ROUTES = ['/login', '/apply', '/'];
+const PUBLIC_ROUTES = ['/login', '/apply', '/accept-invite', '/forgot-password', '/reset-password', '/'];
 
 function clearAuthAndRedirect() {
   clearToken();
@@ -138,8 +138,17 @@ export const apolloClient = new ApolloClient({
   link: ApolloLink.from([errorLink, authLink, httpLink]),
   cache: new InMemoryCache({ addTypename: false }),
   defaultOptions: {
-    watchQuery: { fetchPolicy: 'cache-and-network' },
-    query: { fetchPolicy: 'network-only' },
+    // 'cache-and-network' (the previous default) hits the DB on every
+    // useQuery mount even when cached data already exists — combined with
+    // ProtectedRoute remounting on every route change, this kept the Neon
+    // endpoint's compute active almost continuously. 'cache-first' serves
+    // cached data with zero network round-trip when available, and only
+    // hits the network the first time a query is seen (or after
+    // refetch()/cache eviction) — pages that need guaranteed-fresh data on
+    // every visit (e.g. lists right after a mutation) should still pass an
+    // explicit fetchPolicy or call refetch() themselves.
+    watchQuery: { fetchPolicy: 'cache-first' },
+    query: { fetchPolicy: 'cache-first' },
     mutate: { fetchPolicy: 'no-cache' },
   },
 });

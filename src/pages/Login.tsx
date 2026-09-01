@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,7 +100,15 @@ const Login = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs font-medium text-accent hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   <div className="relative">
                     <Input
                       id="password"
@@ -152,7 +160,7 @@ const Login = () => {
                     We're an invite-based community. Apply for membership and we'll review your application.
                   </p>
                   <a
-                    href="https://apply.godevelopers.online"
+                    href="https://apply.godevelopers.space"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"

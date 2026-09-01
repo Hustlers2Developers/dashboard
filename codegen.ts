@@ -3,7 +3,7 @@ import { CodegenConfig } from '@graphql-codegen/cli';
 const config: CodegenConfig = {
   overwrite: true,
   // Fetch schema from backend (ensure backend is running on port 3000)
-  schema: 'http://api.godevelopers.online/graphql',
+  schema: 'https://api.godevelopers.space/graphql',
   documents: ['src/**/*.ts', 'src/**/*.tsx'],
 
   generates: {

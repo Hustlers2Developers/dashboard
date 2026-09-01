@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -8,7 +8,8 @@ import {
   UPDATE_POSITION,
 } from "@/graphql/mutations/positions";
 import { GET_DEPARTMENTS_BY_ORG } from "@/graphql/mutations/departments";
-import { Department, Position } from "@/graphql/graphql";
+import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
+import { Department, Organization, Position } from "@/graphql/graphql";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,12 +47,34 @@ import { Plus, Trash2, Briefcase, Pencil } from "lucide-react";
 
 const Positions = () => {
   const user = useAuthStore((s) => s.user);
-  const orgId = user?.orgId || "";
+  const isSuperAdmin = user?.systemRole === "SUPER_ADMIN";
+  const defaultOrgId = user?.orgId || "";
+  const [selectedOrgId, setSelectedOrgId] = useState(defaultOrgId);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [selectedDeptId, setSelectedDeptId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Position | null>(null);
+
+  useEffect(() => {
+    if (!selectedOrgId && defaultOrgId) setSelectedOrgId(defaultOrgId);
+  }, [defaultOrgId, selectedOrgId]);
+
+  const { data: organizationsData, loading: loadingOrganizations } = useQuery<{
+    organizations?: Organization[];
+  }>(GET_ALL_ORGANIZATIONS, { skip: !isSuperAdmin });
+  const organizations = useMemo(
+    () => (organizationsData?.organizations ?? []).filter(Boolean) as Organization[],
+    [organizationsData],
+  );
+
+  useEffect(() => {
+    if (isSuperAdmin && !selectedOrgId && organizations.length > 0) {
+      setSelectedOrgId(organizations[0].id);
+    }
+  }, [isSuperAdmin, organizations, selectedOrgId]);
+
+  const orgId = isSuperAdmin ? selectedOrgId : defaultOrgId;
 
   const { data: deptData, loading: deptLoading } = useQuery<
     { departmentsByOrganization: Department[] },
@@ -69,6 +99,13 @@ const Positions = () => {
   const [createPosition, { loading: creating }] = useMutation(CREATE_POSITION);
   const [updatePosition, { loading: updating }] = useMutation(UPDATE_POSITION);
   const [deletePosition] = useMutation(DELETE_POSITION);
+
+  // Departments are org-scoped — clear a stale department selection when the
+  // SUPER_ADMIN switches orgs so we never submit a departmentId from the
+  // previously selected org.
+  useEffect(() => {
+    setSelectedDeptId("");
+  }, [orgId]);
 
   const departments = deptData?.departmentsByOrganization || [];
   const positions = posData?.positionsByOrganization || [];
@@ -139,16 +176,32 @@ const Positions = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Positions</h2>
             <p className="text-muted-foreground">
               Manage job positions in your departments
             </p>
           </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            {isSuperAdmin && (
+              <div className="min-w-[220px] space-y-2">
+                <Label>Organization</Label>
+                <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingOrganizations ? "Loading..." : "Select organization"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setEditingId(null); setName(""); setSelectedDeptId(""); } }}>
             <DialogTrigger asChild>
-              <Button className="gold-gradient text-primary-foreground hover:opacity-90">
+              <Button className="gold-gradient text-primary-foreground hover:opacity-90" disabled={!orgId}>
                 <Plus className="mr-2 h-4 w-4" /> New Position
               </Button>
             </DialogTrigger>
@@ -197,6 +250,7 @@ const Positions = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {posLoading || deptLoading ? (
