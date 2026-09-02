@@ -5,7 +5,7 @@
  *   <script
  *     src="https://hustlersdashboard.lovable.app/track.js"
  *     data-api-key="YOUR_SERVICE_API_KEY"
- *     data-endpoint="https://api.godevelopers.online/analytics/collect"
+ *     data-endpoint="https://api.godevelopers.space/analytics/collect"
  *     defer></script>
  *
  * Tracks:
@@ -26,7 +26,7 @@
   var apiKey = script.getAttribute("data-api-key");
   var endpoint =
     script.getAttribute("data-endpoint") ||
-    "https://api.godevelopers.online/analytics/collect";
+    "https://api.godevelopers.space/analytics/collect";
 
   if (!apiKey) {
     console.warn("[godev-track] missing data-api-key");
