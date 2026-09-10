@@ -32,6 +32,7 @@ const AcceptInvite = () => {
   const token = searchParams.get("token") || "";
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionLoading = useAuthStore((s) => s.loading);
   const setTokens = useAuthStore((s) => s.setTokens);
 
   const [name, setName] = useState("");
@@ -59,6 +60,10 @@ const AcceptInvite = () => {
   const [acceptInvite] = useMutation<{ acceptInvite: { accessToken: string } }>(
     ACCEPT_INVITE,
   );
+
+  if (sessionLoading) {
+    return <RedirectLoader message="Restoring session..." />;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;

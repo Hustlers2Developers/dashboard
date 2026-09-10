@@ -2,7 +2,7 @@ import { useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { GET_PROJECTS_BY_ORG } from "@/graphql/mutations/projects";
 import { GET_TEAMS_BY_ORG } from "@/graphql/mutations/teams";
-import { DAILY_QUOTE } from "@/graphql/mutations/auth";
+import { getTodaysTip } from "@/lib/dev-tips";
 import { Project, Team } from "@/graphql/graphql";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,12 +12,10 @@ import {
   Users,
   Activity,
   TrendingUp,
-  Quote,
+  Lightbulb,
   AlertCircle,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-
-type DailyQuoteData = { text: string; author: string };
 
 // createdAt timestamps come across as epoch-ms strings, but treat a
 // missing/malformed value as absent rather than rendering "Invalid Date".
@@ -60,13 +58,8 @@ const Dashboard = () => {
     skip: !orgId,
   });
 
-  const { data: quoteData, loading: quoteLoading } = useQuery<{ dailyQuote: DailyQuoteData }>(DAILY_QUOTE, {
-    // Stable for the whole UTC day server-side — no need to ever refetch
-    // within a session. A failure here is low-stakes (just a motivational
-    // line), so it silently omits the card rather than showing an error.
-    fetchPolicy: "cache-first",
-    errorPolicy: "all",
-  });
+  // Frontend-only, rotates once per UTC day — no backend "tips" API exists.
+  const todaysTip = getTodaysTip();
 
   const projects = projectsData?.projectsByOrganization || [];
   const teams = teamsData?.teamsByOrganization || [];
@@ -106,28 +99,16 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Daily motivation — fresh on every visit, consistent for the day */}
-        {quoteLoading ? (
-          <div className="premium-card flex items-start gap-3 p-5">
-            <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/3" />
-            </div>
+        {/* Daily dev tip — fresh once per day, consistent for everyone that day */}
+        <div className="premium-card flex items-start gap-3 p-5">
+          <div className="glow-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <Lightbulb className="h-4 w-4 text-primary" />
           </div>
-        ) : quoteData?.dailyQuote ? (
-          <div className="premium-card flex items-start gap-3 p-5">
-            <div className="glow-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <Quote className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium italic text-foreground">
-                "{quoteData.dailyQuote.text}"
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">— {quoteData.dailyQuote.author}</p>
-            </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Tip of the day</p>
+            <p className="mt-0.5 text-sm text-foreground">{todaysTip}</p>
           </div>
-        ) : null}
+        </div>
 
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -8,6 +8,7 @@ const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionLoading = useAuthStore((s) => s.loading);
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
@@ -55,10 +56,10 @@ const NotFound = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Go back
           </Button>
-          <Button asChild className="w-full sm:w-auto">
-            <Link to={isAuthenticated ? "/dashboard" : "/login"}>
+          <Button asChild className="w-full sm:w-auto" disabled={sessionLoading}>
+            <Link to={sessionLoading ? "#" : isAuthenticated ? "/dashboard" : "/login"}>
               <Home className="mr-2 h-4 w-4" />
-              {isAuthenticated ? "Back to dashboard" : "Go to login"}
+              {sessionLoading ? "Loading..." : isAuthenticated ? "Back to dashboard" : "Go to login"}
             </Link>
           </Button>
         </div>

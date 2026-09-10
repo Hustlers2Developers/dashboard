@@ -15,16 +15,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingButton } from "@/components/LoadingButton";
+import { RedirectLoader } from "@/components/RedirectLoader";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle, KeyRound } from "lucide-react";
 
 const ForgotPassword = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionLoading = useAuthStore((s) => s.loading);
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
 
   const [requestPasswordReset] = useMutation(REQUEST_PASSWORD_RESET);
+
+  if (sessionLoading) {
+    return <RedirectLoader message="Restoring session..." />;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;

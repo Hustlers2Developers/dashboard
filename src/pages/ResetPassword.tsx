@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingButton } from "@/components/LoadingButton";
+import { RedirectLoader } from "@/components/RedirectLoader";
 import { toast } from "sonner";
 import { CheckCircle, Eye, EyeOff, KeyRound, XCircle } from "lucide-react";
 
@@ -23,6 +24,7 @@ const ResetPassword = () => {
   const token = searchParams.get("token") || "";
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionLoading = useAuthStore((s) => s.loading);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,6 +33,10 @@ const ResetPassword = () => {
   const [done, setDone] = useState(false);
 
   const [resetPassword] = useMutation<{ resetPassword: boolean }>(RESET_PASSWORD);
+
+  if (sessionLoading) {
+    return <RedirectLoader message="Restoring session..." />;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;

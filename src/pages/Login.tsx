@@ -27,7 +27,15 @@ const Login = () => {
   const redirectParam = searchParams.get("redirect");
   const redirectTo = redirectParam && redirectParam.startsWith("/") ? redirectParam : "/dashboard";
 
-  const { login, isAuthenticated } = useAuthStore();
+  const { login, isAuthenticated, loading: sessionLoading } = useAuthStore();
+
+  // Wait for the silent session-restore (hydrate()) to settle before ever
+  // showing the login form — otherwise a refresh while already logged in
+  // flashes the login screen for a moment before bouncing back once the
+  // refresh token resolves.
+  if (sessionLoading) {
+    return <RedirectLoader message="Restoring session..." />;
+  }
 
   if (isAuthenticated) {
     return (
