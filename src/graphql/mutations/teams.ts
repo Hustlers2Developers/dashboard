@@ -54,8 +54,6 @@ export const GET_TEAM_MEMBERS = gql`
   }
 `;
 
-
-
 export const CREATE_TEAM_MEMBER = gql`
   mutation CreateTeamMember($input: CreateTeamMemberInput!) {
     createTeamMember(input: $input) {
@@ -86,31 +84,6 @@ export const UPDATE_TEAM_MEMBER = gql`
   }
 `;
 
-export const GET_TEAM = gql`
-  query GetTeam($id: String!) {
-    team(id: $id) {
-      id
-      name
-      organizationId
-      projectId
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
-export const GET_ALL_TEAMS = gql`
-  query GetAllTeams {
-    allTeams {
-      id
-      name
-      organizationId
-      projectId
-      createdAt
-    }
-  }
-`;
-
 export const GET_TEAMS_BY_PROJECT = gql`
   query GetTeamsByProject($projectId: String!) {
     teamsByProject(projectId: $projectId) {
@@ -123,25 +96,3 @@ export const GET_TEAMS_BY_PROJECT = gql`
   }
 `;
 
-export const ASSIGN_TEAM_TO_PROJECT = gql`
-  mutation AssignTeamToProject($input: AssignTeamToProjectInput!) {
-    assignTeamToProject(input: $input) {
-      id
-      name
-      projectId
-      updatedAt
-    }
-  }
-`;
-
-export const GET_TEAM_MEMBERS_BY_USER = gql`
-  query GetTeamMembersByUser($userId: String!, $organizationId: String!) {
-    teamMembersByUser(userId: $userId, organizationId: $organizationId) {
-      id
-      teamId
-      userId
-      role
-      createdAt
-    }
-  }
-`;

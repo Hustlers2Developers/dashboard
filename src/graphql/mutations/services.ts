@@ -29,35 +29,6 @@ export const GET_SERVICES = gql`
   }
 `;
 
-export const GET_SERVICE = gql`
-  query Service($id: ID!) {
-    service(id: $id) {
-      id
-      name
-      slug
-      domain
-      serviceType
-      description
-      url
-      githubUrl
-      platforms
-      platformLinks
-      uptime
-      goal
-      frontendFramework
-      styling
-      deploymentPlatform
-      proxyProvider
-      version
-      tags
-      apiKey
-      isActive
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
 export const CREATE_SERVICE = gql`
   mutation CreateService($input: CreateServiceInput!) {
     createService(input: $input) {

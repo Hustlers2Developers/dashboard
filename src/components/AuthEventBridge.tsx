@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { onAuthEvent } from '@/lib/auth-events';
 import { RedirectLoader } from '@/components/RedirectLoader';
 
@@ -18,6 +19,11 @@ export const AuthEventBridge = () => {
       if (event.type === 'logout-redirect') {
         setRedirecting('Session expired. Redirecting to sign in...');
         navigate(event.redirectTo, { replace: true });
+      } else if (event.type === 'session-expired') {
+        // Fired when a silent refresh fails while already on a public route
+        // (e.g. a stale /login tab) — no redirect needed, but the user
+        // should still know why, e.g. if a stale form submit just failed.
+        toast.error('Your session has expired. Please sign in again.');
       }
     });
   }, [navigate]);

@@ -9,6 +9,7 @@ import {
   DELETE_SERVICE,
   REGENERATE_API_KEY,
 } from "@/graphql/mutations/services";
+import { GET_SERVICE_ANALYTICS } from "@/graphql/mutations/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { AlertCircle, Copy, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
+import { AlertCircle, BarChart3, Copy, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, RefreshCw, Server, Trash2, Users, Activity, Link2 } from "lucide-react";
 
 type Service = {
   id: string;
@@ -77,6 +78,140 @@ const SERVICE_TYPES = [
   "KNOWLEDGE_SERVICE",
 ];
 
+type AnalyticsRange = "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "ALL_TIME";
+
+const ANALYTICS_RANGES: { label: string; value: AnalyticsRange }[] = [
+  { label: "Today", value: "TODAY" },
+  { label: "7 days", value: "LAST_7_DAYS" },
+  { label: "30 days", value: "LAST_30_DAYS" },
+  { label: "All time", value: "ALL_TIME" },
+];
+
+type ServiceAnalyticsData = {
+  serviceId: string;
+  serviceName: string;
+  pageviews: number;
+  uniqueVisitors: number;
+  sessions: number;
+  topPages: { path: string; pageviews: number; uniqueVisitors: number }[];
+  topReferrers: { referrer: string; count: number }[];
+};
+
+const fmtNum = (n: number) => new Intl.NumberFormat().format(n);
+
+// Per-service analytics drill-down — lazily queried only while its dialog is
+// open, per service, rather than fetched eagerly for every service on page
+// load.
+const ServiceAnalyticsDialog = ({
+  service,
+  onOpenChange,
+}: {
+  service: { id: string; name: string } | null;
+  onOpenChange: (open: boolean) => void;
+}) => {
+  const [range, setRange] = useState<AnalyticsRange>("LAST_7_DAYS");
+
+  const { data, loading, error } = useQuery<{ serviceAnalytics: ServiceAnalyticsData }>(
+    GET_SERVICE_ANALYTICS,
+    {
+      variables: { serviceId: service?.id, range },
+      skip: !service,
+      fetchPolicy: "cache-first",
+      errorPolicy: "all",
+    },
+  );
+
+  const analytics = data?.serviceAnalytics;
+
+  return (
+    <Dialog open={!!service} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            {service?.name} analytics
+          </DialogTitle>
+          <DialogDescription>Pageviews and traffic for this service.</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-wrap gap-2">
+          {ANALYTICS_RANGES.map((r) => (
+            <Button
+              key={r.value}
+              size="sm"
+              variant={range === r.value ? "default" : "outline"}
+              onClick={() => setRange(r.value)}
+            >
+              {r.label}
+            </Button>
+          ))}
+        </div>
+
+        {loading && !analytics ? (
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </div>
+        ) : error && !analytics ? (
+          <p className="text-sm text-destructive">{error.message}</p>
+        ) : !analytics ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No analytics data yet.</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="premium-card p-3 text-center">
+                <Eye className="mx-auto mb-1 h-4 w-4 text-accent" />
+                <p className="text-lg font-bold text-foreground">{fmtNum(analytics.pageviews)}</p>
+                <p className="text-[11px] text-muted-foreground">Pageviews</p>
+              </div>
+              <div className="premium-card p-3 text-center">
+                <Users className="mx-auto mb-1 h-4 w-4 text-primary" />
+                <p className="text-lg font-bold text-foreground">{fmtNum(analytics.uniqueVisitors)}</p>
+                <p className="text-[11px] text-muted-foreground">Visitors</p>
+              </div>
+              <div className="premium-card p-3 text-center">
+                <Activity className="mx-auto mb-1 h-4 w-4 text-saffron" />
+                <p className="text-lg font-bold text-foreground">{fmtNum(analytics.sessions)}</p>
+                <p className="text-[11px] text-muted-foreground">Sessions</p>
+              </div>
+            </div>
+
+            {analytics.topPages.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Top pages</p>
+                <div className="space-y-1.5">
+                  {analytics.topPages.slice(0, 5).map((p) => (
+                    <div key={p.path} className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
+                      <span className="truncate text-foreground">{p.path}</span>
+                      <span className="shrink-0 text-muted-foreground">{fmtNum(p.pageviews)} views</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {analytics.topReferrers.length > 0 && (
+              <div>
+                <p className="mb-2 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <Link2 className="h-3 w-3" /> Top referrers
+                </p>
+                <div className="space-y-1.5">
+                  {analytics.topReferrers.slice(0, 5).map((r) => (
+                    <div key={r.referrer} className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
+                      <span className="truncate text-foreground">{r.referrer || "Direct"}</span>
+                      <span className="shrink-0 text-muted-foreground">{fmtNum(r.count)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const emptyForm = {
   name: "",
   slug: "",
@@ -106,6 +241,7 @@ const Services = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editService, setEditService] = useState<Service | null>(null);
   const [deleteService, setDeleteService] = useState<Service | null>(null);
+  const [analyticsService, setAnalyticsService] = useState<Service | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
 
@@ -483,6 +619,9 @@ const Services = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-1">
+                      <Button size="sm" variant="outline" onClick={() => setAnalyticsService(svc)}>
+                        <BarChart3 className="mr-1.5 h-3.5 w-3.5" />Analytics
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => openEdit(svc)}>
                         <Pencil className="mr-1.5 h-3.5 w-3.5" />Edit
                       </Button>
@@ -533,6 +672,12 @@ const Services = () => {
             {renderServiceForm(handleUpdate, updating, true)}
           </DialogContent>
         </Dialog>
+
+        {/* Per-service Analytics */}
+        <ServiceAnalyticsDialog
+          service={analyticsService}
+          onOpenChange={(o) => { if (!o) setAnalyticsService(null); }}
+        />
 
         {/* Delete Confirm */}
         <AlertDialog open={!!deleteService} onOpenChange={(o) => { if (!o) setDeleteService(null); }}>

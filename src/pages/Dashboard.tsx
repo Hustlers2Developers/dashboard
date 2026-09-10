@@ -3,6 +3,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { GET_PROJECTS_BY_ORG } from "@/graphql/mutations/projects";
 import { GET_TEAMS_BY_ORG } from "@/graphql/mutations/teams";
 import { MY_STREAK, TOP_STREAKERS } from "@/graphql/mutations/attendance";
+import { DAILY_QUOTE } from "@/graphql/mutations/auth";
 import { Project, Team } from "@/graphql/graphql";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,8 +19,11 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  Quote,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+
+type DailyQuoteData = { text: string; author: string };
 
 type StreakInfo = {
   currentStreak: number;
@@ -72,6 +76,11 @@ const Dashboard = () => {
   const { data: streakData, loading: streakLoading } = useQuery<{ myStreak: StreakInfo }>(
     MY_STREAK,
   );
+  const { data: quoteData } = useQuery<{ dailyQuote: DailyQuoteData }>(DAILY_QUOTE, {
+    // Stable for the whole UTC day server-side — no need to ever refetch
+    // within a session.
+    fetchPolicy: "cache-first",
+  });
   const { data: leaderboardData, loading: leaderboardLoading } = useQuery<{
     topStreakers: StreakLeaderEntry[];
   }>(TOP_STREAKERS, {
@@ -119,6 +128,21 @@ const Dashboard = () => {
           </p>
         </div>
 
+        {/* Daily motivation — fresh on every visit, consistent for the day */}
+        {quoteData?.dailyQuote && (
+          <div className="premium-card flex items-start gap-3 p-5">
+            <div className="glow-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <Quote className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium italic text-foreground">
+                "{quoteData.dailyQuote.text}"
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">— {quoteData.dailyQuote.author}</p>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
@@ -144,7 +168,7 @@ const Dashboard = () => {
 
         {/* Streak + Leaderboard */}
         <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="border-border">
+          <Card className="premium-card border-0">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Your streak
@@ -176,7 +200,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-border lg:col-span-2">
+          <Card className="premium-card border-0 lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-amber-500" />

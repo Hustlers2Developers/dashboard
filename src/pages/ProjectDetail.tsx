@@ -91,9 +91,13 @@ const emptyTaskForm: TaskFormState = {
   assignedTeamId: "",
 };
 
+const ROLE_RANK: Record<string, number> = { VIEWER: 0, CONTRIBUTOR: 1, MANAGER: 2 };
+
 const ProjectDetail = () => {
   const { id: projectId } = useParams<{ id: string }>();
-  const orgId = useAuthStore((s) => s.user?.orgId) || "";
+  const user = useAuthStore((s) => s.user);
+  const orgId = user?.orgId || "";
+  const isSuperAdmin = user?.systemRole === "SUPER_ADMIN";
 
   const [open, setOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -148,6 +152,18 @@ const ProjectDetail = () => {
     () => users.filter((u) => !memberUserIds.has(u.id)),
     [users, memberUserIds],
   );
+
+  // A user's real, backend-enforced permission on this project is their
+  // ProjectMember.role — VIEWER is read-only, CONTRIBUTOR can manage tasks,
+  // MANAGER can also manage membership. SUPER_ADMIN always has full access.
+  // Falls back to VIEWER (most restrictive) if the user isn't a project
+  // member at all (e.g. org-wide visibility without explicit membership).
+  const myRole = useMemo(
+    () => members.find((m) => m.userId === user?.sub)?.role,
+    [members, user?.sub],
+  );
+  const canManageTasks = isSuperAdmin || (!!myRole && ROLE_RANK[myRole] >= ROLE_RANK.CONTRIBUTOR);
+  const canManageMembers = isSuperAdmin || myRole === "MANAGER";
 
   const [createTask, { loading: creating }] = useMutation(CREATE_TASK);
   const [updateTask, { loading: savingEdit }] = useMutation(UPDATE_TASK);
@@ -322,10 +338,15 @@ const ProjectDetail = () => {
                   <DialogTitle>Project members</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
+                  {!canManageMembers && (
+                    <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                      You have read-only access to this project's membership.
+                    </p>
+                  )}
                   <form onSubmit={handleAddMember} className="flex items-end gap-2">
                     <div className="flex-1 space-y-2">
                       <Label>User</Label>
-                      <Select value={addMemberUserId} onValueChange={setAddMemberUserId}>
+                      <Select value={addMemberUserId} onValueChange={setAddMemberUserId} disabled={!canManageMembers}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select user" />
                         </SelectTrigger>
@@ -340,7 +361,11 @@ const ProjectDetail = () => {
                     </div>
                     <div className="w-36 space-y-2">
                       <Label>Role</Label>
-                      <Select value={addMemberRole} onValueChange={(v) => setAddMemberRole(v as typeof addMemberRole)}>
+                      <Select
+                        value={addMemberRole}
+                        onValueChange={(v) => setAddMemberRole(v as typeof addMemberRole)}
+                        disabled={!canManageMembers}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -356,7 +381,7 @@ const ProjectDetail = () => {
                       className="gold-gradient text-primary-foreground"
                       loading={addingMember}
                       loadingText="Adding..."
-                      disabled={!addMemberUserId}
+                      disabled={!addMemberUserId || !canManageMembers}
                     >
                       <UserPlus className="h-4 w-4" />
                     </LoadingButton>
@@ -384,6 +409,7 @@ const ProjectDetail = () => {
                               <Select
                                 value={m.role}
                                 onValueChange={(v) => handleMemberRoleChange(m.id, v)}
+                                disabled={!canManageMembers}
                               >
                                 <SelectTrigger className="h-8 w-32 text-xs">
                                   <SelectValue />
@@ -399,6 +425,7 @@ const ProjectDetail = () => {
                                 size="icon"
                                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
                                 onClick={() => handleRemoveMember(m.id)}
+                                disabled={!canManageMembers}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -412,9 +439,14 @@ const ProjectDetail = () => {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
+            <Dialog open={canManageTasks && open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
               <DialogTrigger asChild>
-                <Button className="gold-gradient text-primary-foreground hover:opacity-90" onClick={openCreateDialog}>
+                <Button
+                  className="gold-gradient text-primary-foreground hover:opacity-90"
+                  onClick={openCreateDialog}
+                  disabled={!canManageTasks}
+                  title={canManageTasks ? undefined : "You have view-only access to this project"}
+                >
                   <Plus className="mr-2 h-4 w-4" /> New Task
                 </Button>
               </DialogTrigger>
@@ -557,24 +589,26 @@ const ProjectDetail = () => {
                                 <h4 className="text-sm font-medium text-foreground">
                                   {task.title}
                                 </h4>
-                                <div className="flex opacity-0 group-hover:opacity-100">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-primary"
-                                    onClick={() => openEditDialog(task)}
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => setDeleteTarget(task)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                                {canManageTasks && (
+                                  <div className="flex opacity-0 group-hover:opacity-100">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                      onClick={() => openEditDialog(task)}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => setDeleteTarget(task)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                               {task.description && (
                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -613,6 +647,7 @@ const ProjectDetail = () => {
                                   onValueChange={(val) =>
                                     handleStatusChange(task.id, val)
                                   }
+                                  disabled={!canManageTasks}
                                 >
                                   <SelectTrigger className="h-7 text-xs">
                                     <SelectValue />

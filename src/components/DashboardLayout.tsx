@@ -21,6 +21,8 @@ import {
   ClipboardList,
   BarChart3,
   ChevronDown,
+  Users2,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +47,8 @@ const getNavItems = (userRole?: string) => [
   { to: "/positions", label: "Positions", icon: Briefcase },
   { to: "/attendance", label: "Attendance", icon: CalendarCheck },
   { to: "/invites", label: "Invites", icon: Mail },
+  { to: "/journey", label: "Journey", icon: Compass },
+  { to: "/community", label: "Community", icon: Users2 },
   { to: "/profile", label: "My Profile", icon: UserCircle },
   { to: "/applications", label: "Applications", icon: ClipboardList },
   ...(userRole === "SUPER_ADMIN"

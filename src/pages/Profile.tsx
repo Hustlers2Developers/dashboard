@@ -351,11 +351,25 @@ const Profile = () => {
                       <Label>Profile Picture URL</Label>
                       {editing ? (
                         <Input name="profilePicUrl" value={form.profilePicUrl} onChange={handleChange} placeholder="https://cdn.example.com/photo.jpg" />
+                      ) : profile?.details?.profilePicUrl ? (
+                        <a
+                          href={withProtocol(profile.details.profilePicUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 group"
+                        >
+                          <img
+                            src={profile.details.profilePicUrl}
+                            alt="Profile"
+                            className="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          />
+                          <span className="text-sm text-accent group-hover:underline break-all">
+                            {profile.details.profilePicUrl}
+                          </span>
+                        </a>
                       ) : (
-                        <LinkValue
-                          value={profile?.details?.profilePicUrl}
-                          href={profile?.details?.profilePicUrl ? withProtocol(profile.details.profilePicUrl) : null}
-                        />
+                        <p className="text-sm text-foreground">—</p>
                       )}
                     </div>
                     <div className="space-y-2">

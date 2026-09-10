@@ -330,7 +330,15 @@ const Invite = () => {
                     For <span className="font-medium text-foreground">{lastLink.email}</span> — share this link with them.
                   </p>
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-2">
-                    <code className="flex-1 truncate text-xs text-foreground">{lastLink.link}</code>
+                    <a
+                      href={lastLink.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 truncate text-xs text-accent hover:underline"
+                      title={lastLink.link}
+                    >
+                      {lastLink.link}
+                    </a>
                     <button
                       onClick={() => copyToClipboard(lastLink.link)}
                       className="shrink-0 p-1.5 hover:bg-muted rounded transition-colors"

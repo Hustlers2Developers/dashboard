@@ -41,25 +41,6 @@ export const GET_GUEST_APPLICATIONS = gql`
   }
 `;
 
-export const GET_GUEST_APPLICATION = gql`
-  query GuestApplication($id: ID!) {
-    guestApplication(id: $id) {
-      id
-      name
-      email
-      phoneNumber
-      githubUsername
-      portfolioUrl
-      reason
-      status
-      reviewedBy
-      reviewedAt
-      inviteId
-      createdAt
-    }
-  }
-`;
-
 export const APPROVE_GUEST_APPLICATION = gql`
   mutation ApproveGuestApplication(
     $id: ID!

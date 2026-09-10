@@ -65,15 +65,26 @@ const TeamMembersList = ({
   teamId,
   usersMap,
   availableUsers,
+  isSuperAdmin,
+  currentUserId,
 }: {
   teamId: string;
   usersMap: Map<string, AppUser>;
   availableUsers: AppUser[];
+  isSuperAdmin: boolean;
+  currentUserId?: string;
 }) => {
   const { data, loading, refetch } = useQuery<
     { teamMembersByTeam: TeamMember[] },
     { teamId: string }
   >(GET_TEAM_MEMBERS, { variables: { teamId } });
+
+  // Real, backend-enforced gate: SUPER_ADMIN always can; otherwise only this
+  // specific team's own LEAD can manage its membership (TeamRole has no
+  // separate viewer/admin concept — LEAD is the only elevated tier).
+  const canManage =
+    isSuperAdmin ||
+    (data?.teamMembersByTeam ?? []).some((m) => m.userId === currentUserId && m.role === "LEAD");
 
   const [addOpen, setAddOpen] = useState(false);
   const [addUserId, setAddUserId] = useState("");
@@ -140,9 +151,14 @@ const TeamMembersList = ({
         <p className="text-xs font-medium text-muted-foreground">
           {members.length} member{members.length === 1 ? "" : "s"}
         </p>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <Dialog open={canManage && addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" variant="outline">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canManage}
+              title={canManage ? undefined : "Only the team lead can manage members"}
+            >
               <UserPlus className="mr-2 h-3.5 w-3.5" />
               Add member
             </Button>
@@ -232,11 +248,15 @@ const TeamMembersList = ({
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => handleRoleToggle(m)}
-                    title="Toggle role"
-                    className="rounded"
+                    onClick={() => canManage && handleRoleToggle(m)}
+                    title={canManage ? "Toggle role" : undefined}
+                    disabled={!canManage}
+                    className="rounded disabled:cursor-not-allowed"
                   >
-                    <Badge variant="secondary" className="text-xs hover:bg-secondary/70">
+                    <Badge
+                      variant="secondary"
+                      className={canManage ? "text-xs hover:bg-secondary/70" : "text-xs"}
+                    >
                       {m.role}
                     </Badge>
                   </button>
@@ -245,6 +265,7 @@ const TeamMembersList = ({
                     size="icon"
                     className="h-7 w-7 text-muted-foreground hover:text-destructive"
                     onClick={() => setRemoveTarget(m)}
+                    disabled={!canManage}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -285,6 +306,7 @@ const TeamMembersList = ({
 const Teams = () => {
   const user = useAuthStore((s) => s.user);
   const orgId = user?.orgId || "";
+  const isSuperAdmin = user?.systemRole === "SUPER_ADMIN";
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
@@ -396,9 +418,13 @@ const Teams = () => {
                 <Mail className="mr-2 h-4 w-4" /> Invite Members
               </Link>
             </Button>
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={isSuperAdmin && open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button className="gold-gradient text-primary-foreground hover:opacity-90">
+                <Button
+                  className="gold-gradient text-primary-foreground hover:opacity-90"
+                  disabled={!isSuperAdmin}
+                  title={isSuperAdmin ? undefined : "Only Super Admins can create teams"}
+                >
                   <Plus className="mr-2 h-4 w-4" /> New Team
                 </Button>
               </DialogTrigger>
@@ -491,22 +517,26 @@ const Teams = () => {
                         <ChevronDown className="h-4 w-4" />
                       )}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
-                      onClick={() => openEditDialog(team)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteTarget(team)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {isSuperAdmin && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                          onClick={() => openEditDialog(team)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteTarget(team)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 {expandedTeam === team.id && (
@@ -518,6 +548,8 @@ const Teams = () => {
                       teamId={team.id}
                       usersMap={usersMap}
                       availableUsers={availableUsers}
+                      isSuperAdmin={isSuperAdmin}
+                      currentUserId={user?.sub}
                     />
                   </CardContent>
                 )}

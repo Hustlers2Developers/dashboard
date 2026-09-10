@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
-import { ALL_PLATFORM_USERS } from "@/graphql/mutations/users";
+import { ALL_PLATFORM_USERS, GET_ALL_USERS } from "@/graphql/mutations/users";
 import {
   CREATE_MEMBERSHIP,
   GET_MEMBERSHIPS,
@@ -172,14 +172,24 @@ const Memberships = () => {
 
   // Platform-wide user list — needed because the "add member" picker must be
   // able to surface any registered user regardless of which org is currently
-  // selected, not just users already in the admin's own org (getAllUsers
-  // would only return members of the caller's own org here).
-  const { data: usersData, loading: loadingUsers } = useQuery<{ allPlatformUsers: AppUser[] }>(
+  // selected, not just users already in the admin's own org. SUPER_ADMIN
+  // only (allPlatformUsers is an admin-only query).
+  const { data: platformUsersData, loading: loadingUsers } = useQuery<{ allPlatformUsers: AppUser[] }>(
     ALL_PLATFORM_USERS,
     {
       skip: !isSuperAdmin,
     },
   );
+
+  // Non-admins can't call allPlatformUsers, but they can still see their own
+  // org's roster via getAllUsers — needed so the member list below can show
+  // real names instead of falling back to a raw userId (previously it did,
+  // since usersById was always empty for non-admins).
+  const { data: orgUsersData } = useQuery<{ getAllUsers: AppUser[] }>(GET_ALL_USERS, {
+    variables: { orgId: selectedOrgId || undefined },
+    skip: isSuperAdmin || !selectedOrgId,
+    fetchPolicy: "cache-first",
+  });
 
   const [createMembership, { loading: creatingMembership }] = useMutation(CREATE_MEMBERSHIP);
   const [updateMemberRole, { loading: updatingRole }] = useMutation(UPDATE_MEMBER_ROLE);
@@ -190,7 +200,10 @@ const Memberships = () => {
     [membershipsData],
   );
   const roles = useMemo(() => rolesData?.orgRoles ?? [], [rolesData]);
-  const users = useMemo(() => usersData?.allPlatformUsers ?? [], [usersData]);
+  const users = useMemo(
+    () => platformUsersData?.allPlatformUsers ?? orgUsersData?.getAllUsers ?? [],
+    [platformUsersData, orgUsersData],
+  );
 
   const alreadyMemberIds = useMemo(
     () => new Set(memberships.filter((m) => m.isActive).map((m) => m.userId)),

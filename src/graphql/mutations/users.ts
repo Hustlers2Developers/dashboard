@@ -13,19 +13,6 @@ export const GET_ALL_USERS = gql`
   }
 `;
 
-export const GET_USER_BY_ID = gql`
-  query GetUserById($id: ID!) {
-    getUserById(id: $id) {
-      id
-      email
-      name
-      systemRole
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
 export const ALL_PLATFORM_USERS = gql`
   query AllPlatformUsers($search: String) {
     allPlatformUsers(search: $search) {

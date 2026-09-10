@@ -8,6 +8,8 @@ import { apolloClient } from "@/lib/graphql-client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthEventBridge } from "@/components/AuthEventBridge";
 import { AuthProvider } from "@/components/AuthProvider";
+import { OnboardingModal } from "@/components/OnboardingModal";
+import { useAuthStore } from "@/stores/auth-store";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 
@@ -23,6 +25,8 @@ import Organizations from "./pages/Organizations";
 import Memberships from "./pages/Memberships";
 import Users from "./pages/Users";
 import Profile from "./pages/Profile";
+import Community from "./pages/Community";
+import Journey from "./pages/Journey";
 import Services from "./pages/Services";
 import Analytics from "./pages/Analytics";
 import Apply from "./pages/Apply";
@@ -34,6 +38,11 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const OnboardingGate = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return isAuthenticated ? <OnboardingModal /> : null;
+};
+
 const App = () => (
   <ApolloProvider client={apolloClient}>
     <QueryClientProvider client={queryClient}>
@@ -43,6 +52,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
           <AuthEventBridge />
+          <OnboardingGate />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -140,6 +150,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/community"
+              element={
+                <ProtectedRoute>
+                  <Community />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/journey"
+              element={
+                <ProtectedRoute>
+                  <Journey />
                 </ProtectedRoute>
               }
             />

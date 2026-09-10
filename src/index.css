@@ -142,6 +142,25 @@
   .gold-gradient:active {
     @apply opacity-75;
   }
+
+  /* Elevated card treatment for hero/premium sections — subtle lift + glow
+     on hover, built from existing tokens rather than new colors. */
+  .premium-card {
+    @apply relative overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300;
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+  }
+
+  .premium-card:hover {
+    @apply -translate-y-0.5 border-primary/30;
+    box-shadow:
+      0 12px 24px -12px hsl(var(--primary) / 0.25),
+      0 4px 8px -4px hsl(var(--foreground) / 0.06);
+  }
+
+  /* Soft radial glow used behind hero icons/avatars for a bit of depth. */
+  .glow-primary {
+    box-shadow: 0 0 0 6px hsl(var(--primary) / 0.08);
+  }
 }
 
 /* Fix hover background and text color for destructive ghost buttons */

@@ -1,29 +1,5 @@
 import { gql } from '@apollo/client';
 
-export const GET_DEPARTMENT = gql`
-  query GetDepartment($id: String!) {
-    department(id: $id) {
-      id
-      name
-      organizationId
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
-export const GET_ALL_DEPARTMENTS = gql`
-  query GetAllDepartments {
-    allDepartments {
-      id
-      name
-      organizationId
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
 export const GET_DEPARTMENTS_BY_ORG = gql`
   query GetDepartmentsByOrganization($organizationId: String!) {
     departmentsByOrganization(organizationId: $organizationId) {
