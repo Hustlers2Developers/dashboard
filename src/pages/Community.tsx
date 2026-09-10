@@ -8,7 +8,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users2, Search, Mail, MessageCircle, ArrowUpRight } from "lucide-react";
+import { Users2, Search, Mail, MessageCircle, ArrowUpRight, Github, Linkedin } from "lucide-react";
+
+type CommunityUserDetails = {
+  title?: string | null;
+  bio?: string | null;
+  profilePicUrl?: string | null;
+  githubUsername?: string | null;
+  linkedInUrl?: string | null;
+  isPublic?: boolean;
+};
 
 type CommunityUser = {
   id: string;
@@ -16,7 +25,10 @@ type CommunityUser = {
   name?: string | null;
   systemRole: string;
   createdAt: string;
+  details?: CommunityUserDetails | null;
 };
+
+const withProtocol = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 const SLACK_INVITE_URL =
   "https://join.slack.com/t/teamhustlersworld/shared_invite/zt-3lihulkj7-2gCwffDBf5tGc1Zpus_NZw";
@@ -46,6 +58,29 @@ const colorFor = (seed: string) => {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+};
+
+const MemberAvatar = ({ member }: { member: CommunityUser }) => {
+  const [errored, setErrored] = useState(false);
+  const picUrl = member.details?.profilePicUrl;
+  if (picUrl && !errored) {
+    return (
+      <img
+        src={picUrl}
+        alt={member.name || member.email}
+        onError={() => setErrored(true)}
+        referrerPolicy="no-referrer"
+        className="h-12 w-12 shrink-0 rounded-full border border-border object-cover"
+      />
+    );
+  }
+  return (
+    <div
+      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${colorFor(member.id)}`}
+    >
+      {initials(member.name, member.email)}
+    </div>
+  );
 };
 
 const Community = () => {
@@ -152,39 +187,81 @@ const Community = () => {
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {members.map((member) => (
-              <div key={member.id} className="premium-card flex items-center gap-3 p-5">
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${colorFor(member.id)}`}
-                >
-                  {initials(member.name, member.email)}
+            {members.map((member) => {
+              const details = member.details;
+              const hasExtras = details?.title || details?.bio || details?.githubUsername || details?.linkedInUrl;
+              return (
+                <div key={member.id} className="premium-card flex flex-col gap-3 p-5">
+                  <div className="flex items-center gap-3">
+                    <MemberAvatar member={member} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground">
+                        {member.name || "Unnamed developer"}
+                      </p>
+                      {details?.title && (
+                        <p className="truncate text-xs text-muted-foreground">{details.title}</p>
+                      )}
+                      <a
+                        href={`mailto:${member.email}`}
+                        className="flex items-center gap-1 truncate text-xs text-muted-foreground hover:text-accent hover:underline"
+                      >
+                        <Mail className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{member.email}</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {details?.bio && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">{details.bio}</p>
+                  )}
+
+                  {(details?.githubUsername || details?.linkedInUrl) && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {details?.githubUsername && (
+                        <a
+                          href={`https://github.com/${details.githubUsername}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                        >
+                          <Github className="h-3 w-3" />
+                          GitHub
+                        </a>
+                      )}
+                      {details?.linkedInUrl && (
+                        <a
+                          href={withProtocol(details.linkedInUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                        >
+                          <Linkedin className="h-3 w-3" />
+                          LinkedIn
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {!hasExtras && (
+                    <p className="text-[11px] text-muted-foreground/70">
+                      No extra details shared yet.
+                    </p>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-foreground">
-                    {member.name || "Unnamed developer"}
-                  </p>
-                  <a
-                    href={`mailto:${member.email}`}
-                    className="flex items-center gap-1 truncate text-xs text-muted-foreground hover:text-accent hover:underline"
-                  >
-                    <Mail className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{member.email}</span>
-                  </a>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         <p className="text-center text-xs text-muted-foreground">
-          Showing name and email for every member.{" "}
+          Members choose what to share beyond name and email.{" "}
           <Link
             to="/profile"
             className="text-accent hover:underline"
           >
-            Add your LinkedIn or GitHub to your profile
+            Add your bio, title, GitHub, or LinkedIn
           </Link>{" "}
-          — a public directory view is on the way.
+          to show up here.
         </p>
       </div>
     </DashboardLayout>

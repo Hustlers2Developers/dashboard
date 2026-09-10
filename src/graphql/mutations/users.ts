@@ -1,5 +1,9 @@
 import { gql } from "@apollo/client";
 
+// details is only included for the caller's own permitted view — for
+// Community (other users), the backend is expected to omit/null these
+// sub-fields server-side for any user whose UserDetails.isPublic is false,
+// so no client-side visibility filtering is needed here.
 export const GET_ALL_USERS = gql`
   query GetAllUsers($orgId: String) {
     getAllUsers(orgId: $orgId) {
@@ -9,6 +13,14 @@ export const GET_ALL_USERS = gql`
       systemRole
       createdAt
       updatedAt
+      details {
+        title
+        bio
+        profilePicUrl
+        githubUsername
+        linkedInUrl
+        isPublic
+      }
     }
   }
 `;
@@ -48,6 +60,7 @@ export const MY_PROFILE = gql`
         gfgUsername
         instagramUrl
         portfolioUrl
+        isPublic
       }
     }
   }
@@ -75,6 +88,7 @@ export const UPDATE_PROFILE = gql`
         gfgUsername
         instagramUrl
         portfolioUrl
+        isPublic
       }
     }
   }

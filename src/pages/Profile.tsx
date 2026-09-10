@@ -40,6 +40,7 @@ type UserDetails = {
   gfgUsername?: string | null;
   instagramUrl?: string | null;
   portfolioUrl?: string | null;
+  isPublic?: boolean;
 };
 
 type ProfileData = {
@@ -94,11 +95,7 @@ const Profile = () => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-  // Not persisted yet — UserDetails has no isPublic field on the backend
-  // (see BACKEND_COMMUNITY_DIRECTORY.md). Defaults to public (matches
-  // today's actual behavior: name+email already show to everyone in
-  // Community). Wire this to updateProfile once that field exists.
-  const [isPublic, setIsPublic] = useState(true);
+  const [savingVisibility, setSavingVisibility] = useState(false);
 
   const { data, loading, error, refetch } = useQuery<{ myProfile: ProfileData }>(MY_PROFILE, {
     fetchPolicy: "cache-first",
@@ -185,6 +182,21 @@ const Profile = () => {
     }
   };
 
+  // Saves immediately on toggle — this is a settings switch, not part of the
+  // Edit/Save profile-details form.
+  const handleToggleVisibility = async (next: boolean) => {
+    setSavingVisibility(true);
+    try {
+      await updateProfile({ variables: { input: { isPublic: next } } });
+      toast.success(next ? "Your profile is now public." : "Your profile is now private.");
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update visibility.");
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
+
   const formatDate = (val?: string | null) => {
     if (!val) return "—";
     const d = new Date(val);
@@ -247,7 +259,7 @@ const Profile = () => {
               <CardContent className="flex items-center justify-between gap-4 p-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    {isPublic ? (
+                    {profile?.details?.isPublic !== false ? (
                       <Eye className="h-4 w-4 text-primary" />
                     ) : (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -256,17 +268,21 @@ const Profile = () => {
                   <div>
                     <p className="text-sm font-medium text-foreground">Profile visibility</p>
                     <p className="text-xs text-muted-foreground">
-                      {isPublic
-                        ? "Your details are visible to other members in Community."
-                        : "Your details are hidden from other members."}
+                      {profile?.details?.isPublic !== false
+                        ? "Your bio, title, and links are visible to other members in Community."
+                        : "Your bio, title, and links are hidden from other members."}
                     </p>
                   </div>
                 </div>
-                <Switch checked={isPublic} onCheckedChange={setIsPublic} disabled />
+                <Switch
+                  checked={profile?.details?.isPublic !== false}
+                  onCheckedChange={handleToggleVisibility}
+                  disabled={savingVisibility}
+                />
               </CardContent>
               <CardContent className="pt-0">
                 <p className="text-xs text-muted-foreground">
-                  Coming soon — this preference isn't saved yet. Your name and email are always visible in Community regardless.
+                  Your name and email are always visible in Community regardless of this setting.
                 </p>
               </CardContent>
             </Card>

@@ -122,7 +122,7 @@ const Attendance = () => {
   // Resolves each row's raw userId to a real name/email — without this the
   // table and bulk-mark list only ever show truncated UUIDs.
   type AppUser = { id: string; name?: string | null; email: string };
-  const { data: usersData } = useQuery<{ getAllUsers: AppUser[] }>(GET_ALL_USERS, {
+  const { data: usersData, loading: loadingUsers, error: usersError } = useQuery<{ getAllUsers: AppUser[] }>(GET_ALL_USERS, {
     variables: { orgId: orgId || undefined },
     skip: !orgId || !isAdmin,
     fetchPolicy: "cache-first",
@@ -134,7 +134,7 @@ const Attendance = () => {
   }, [usersData]);
   const displayName = (userId: string) => {
     const u = usersMap.get(userId);
-    return u?.name || u?.email || `${userId.slice(0, 8)}…`;
+    return u?.name || u?.email || "Unknown member";
   };
 
   // ── Bulk mark attendance ──
@@ -280,7 +280,7 @@ const Attendance = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {orgAttendanceLoading ? (
+            {orgAttendanceLoading || loadingUsers ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4].map((i) => (
                   <Skeleton key={i} className="h-12 w-full" />
@@ -299,6 +299,11 @@ const Attendance = () => {
               </p>
             ) : (
               <div className="overflow-x-auto">
+                {usersError && (
+                  <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+                    Couldn't load member names — showing "Unknown member" instead. {usersError.message}
+                  </div>
+                )}
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs text-muted-foreground">
