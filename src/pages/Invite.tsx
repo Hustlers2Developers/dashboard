@@ -76,7 +76,13 @@ type InviteRecord = {
   expiresAt: string;
   acceptedAt?: string | null;
   createdAt: string;
+  token: string;
 };
+
+// Matches the invite email's link format exactly (see API docs):
+// https://godevelopers.space/invite?token=<token>&email=<email>
+const buildInviteLink = (token: string, email: string) =>
+  `https://godevelopers.space/invite?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 
 const Invite = () => {
   const user = useAuthStore((s) => s.user);
@@ -112,8 +118,25 @@ const Invite = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       toast.error("Enter an email to invite.");
+      return;
+    }
+
+    // Client-side duplicate guard — the backend also rejects this
+    // ("Active invite already exists for this email"), but checking here
+    // first avoids a confusing round-trip and points the user to the
+    // existing invite's Resend button instead.
+    const existingPending = invites.find(
+      (inv) =>
+        inv.email.toLowerCase() === trimmedEmail.toLowerCase() &&
+        getInviteStatus(inv) === "pending",
+    );
+    if (existingPending) {
+      toast.error(
+        `${trimmedEmail} already has a pending invite. Use Resend on it instead of creating a new one.`,
+      );
       return;
     }
 
@@ -121,7 +144,7 @@ const Invite = () => {
       const result = await createInviteLink({
         variables: {
           input: {
-            email,
+            email: trimmedEmail,
             organizationId: orgId,
           },
         },
@@ -261,7 +284,7 @@ const Invite = () => {
                               <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                             )}
                           </button>
-                          {status !== "accepted" && (
+                          {status === "pending" && (
                             <button
                               onClick={() => handleResend(invite)}
                               disabled={resending}
@@ -281,6 +304,36 @@ const Invite = () => {
                             </button>
                           )}
                         </div>
+
+                        {/* Current invite link — visible per-row, not just for the
+                            most-recently created/resent one. Expired invites have
+                            no usable link (only Delete remains for them, per
+                            status !== "pending" above), so this only renders when
+                            there's actually something a user could open/copy. */}
+                        {status === "pending" && invite.token && (
+                          <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-2">
+                            <a
+                              href={buildInviteLink(invite.token, invite.email)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 truncate text-xs text-accent hover:underline"
+                              title={buildInviteLink(invite.token, invite.email)}
+                            >
+                              {buildInviteLink(invite.token, invite.email)}
+                            </a>
+                            <button
+                              onClick={() => copyToClipboard(buildInviteLink(invite.token, invite.email))}
+                              className="shrink-0 p-1.5 hover:bg-muted rounded transition-colors"
+                              title="Copy link"
+                            >
+                              {copiedLink === buildInviteLink(invite.token, invite.email) ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -319,38 +372,18 @@ const Invite = () => {
               </CardContent>
             </Card>
 
-            {/* Most recently generated link */}
+            {/* Just-created confirmation — the link itself now lives permanently
+                on that invite's row in the list (left column), so this is only
+                a brief "it worked, here's who" pointer rather than a second
+                copy of the same link. */}
             {lastLink && (
               <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">Latest invite link</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    For <span className="font-medium text-foreground">{lastLink.email}</span> — share this link with them.
+                <CardContent className="flex items-start gap-3 p-4">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                  <p className="text-sm text-muted-foreground">
+                    Invite sent to <span className="font-medium text-foreground">{lastLink.email}</span>.
+                    Find its link in the list on the left.
                   </p>
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-2">
-                    <a
-                      href={lastLink.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 truncate text-xs text-accent hover:underline"
-                      title={lastLink.link}
-                    >
-                      {lastLink.link}
-                    </a>
-                    <button
-                      onClick={() => copyToClipboard(lastLink.link)}
-                      className="shrink-0 p-1.5 hover:bg-muted rounded transition-colors"
-                      title="Copy link"
-                    >
-                      {copiedLink === lastLink.link ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-500" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
                 </CardContent>
               </Card>
             )}

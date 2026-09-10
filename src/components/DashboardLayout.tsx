@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth-store";
+import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -23,6 +24,7 @@ import {
   ChevronDown,
   Users2,
   Compass,
+  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,30 +37,53 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const getNavItems = (userRole?: string) => [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/teams", label: "Teams", icon: Users },
-  { to: "/memberships", label: "Members", icon: UserCog },
-  ...(userRole === "SUPER_ADMIN"
-    ? [{ to: "/users", label: "Users", icon: UserSquare2 }]
-    : []),
-  { to: "/departments", label: "Departments", icon: Building2 },
-  { to: "/positions", label: "Positions", icon: Briefcase },
-  { to: "/attendance", label: "Attendance", icon: CalendarCheck },
-  { to: "/invites", label: "Invites", icon: Mail },
-  { to: "/journey", label: "Journey", icon: Compass },
-  { to: "/community", label: "Community", icon: Users2 },
-  { to: "/profile", label: "My Profile", icon: UserCircle },
-  { to: "/applications", label: "Applications", icon: ClipboardList },
-  ...(userRole === "SUPER_ADMIN"
-    ? [
-        { to: "/organizations", label: "Organizations", icon: Shield },
-        { to: "/services", label: "Services", icon: Server },
-        { to: "/analytics", label: "Analytics", icon: BarChart3 },
-      ]
-    : []),
-];
+// Admin/Super Admin manage the organization's structure and membership
+// pipeline — Departments, Positions, Organizations, Invites, Applications,
+// Attendance, and Analytics are all admin-facing tools that a regular member
+// has no real use for and shouldn't see cluttering their nav. Members get a
+// simpler, personal-progress-focused sidebar instead (Streak in place of
+// the admin-only Attendance report).
+const getNavItems = (userRole?: string, isOrgAdmin?: boolean) => {
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  // Users/Departments/Positions allow org-role "Admin" alongside
+  // SUPER_ADMIN (see useIsOrgAdmin); Attendance/Invites/Applications/
+  // Organizations/Services/Analytics stay SUPER_ADMIN-only both here and at
+  // the route level (ProtectedRoute adminOnly) — don't show a nav link a
+  // user would immediately bounce off of.
+  const canManageOrgStructure = isSuperAdmin || isOrgAdmin;
+
+  return [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/projects", label: "Projects", icon: FolderKanban },
+    { to: "/teams", label: "Teams", icon: Users },
+    { to: "/memberships", label: "Members", icon: UserCog },
+    ...(canManageOrgStructure
+      ? [
+          { to: "/users", label: "Users", icon: UserSquare2 },
+          { to: "/departments", label: "Departments", icon: Building2 },
+          { to: "/positions", label: "Positions", icon: Briefcase },
+        ]
+      : []),
+    ...(isSuperAdmin
+      ? [
+          { to: "/attendance", label: "Attendance", icon: CalendarCheck },
+          { to: "/invites", label: "Invites", icon: Mail },
+        ]
+      : []),
+    ...(!isSuperAdmin ? [{ to: "/streak", label: "Streak", icon: Flame }] : []),
+    { to: "/journey", label: "Journey", icon: Compass },
+    { to: "/community", label: "Community", icon: Users2 },
+    { to: "/profile", label: "My Profile", icon: UserCircle },
+    ...(isSuperAdmin
+      ? [
+          { to: "/applications", label: "Applications", icon: ClipboardList },
+          { to: "/organizations", label: "Organizations", icon: Shield },
+          { to: "/services", label: "Services", icon: Server },
+          { to: "/analytics", label: "Analytics", icon: BarChart3 },
+        ]
+      : []),
+  ];
+};
 
 export const DashboardLayout = ({
   children,
@@ -69,6 +94,11 @@ export const DashboardLayout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuthStore();
+  // cache-first under the hood (see useIsOrgAdmin), so this only ever hits
+  // the network once per session despite DashboardLayout rendering on every
+  // page — not a per-navigation cost.
+  const { isOrgAdmin } = useIsOrgAdmin(user?.orgId);
+  const navItems = getNavItems(user?.systemRole, isOrgAdmin);
 
   const handleLogout = async () => {
     await logout();
@@ -98,17 +128,17 @@ export const DashboardLayout = ({
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg gold-gradient">
+        <div className="flex h-16 items-center gap-2.5 border-b border-border px-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg gold-gradient">
             <span className="text-sm font-bold text-primary-foreground">G</span>
           </div>
-          <span className="text-lg font-bold text-foreground">
+          <span className="truncate text-lg font-bold text-foreground">
             Godevelopers
           </span>
           <Button
             variant="ghost"
             size="icon"
-            className="ml-auto md:hidden"
+            className="ml-auto shrink-0 md:hidden"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-5 w-5" />
@@ -117,7 +147,7 @@ export const DashboardLayout = ({
 
         {/* Nav */}
         <nav className="flex-1 space-y-1 p-4">
-          {getNavItems(user?.systemRole).map((item) => {
+          {navItems.map((item) => {
             const isActive =
               location.pathname === item.to ||
               location.pathname.startsWith(item.to + "/");
@@ -170,7 +200,7 @@ export const DashboardLayout = ({
             <Menu className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-semibold text-foreground">
-            {getNavItems(user?.systemRole).find((n) =>
+            {navItems.find((n) =>
               location.pathname.startsWith(n.to),
             )?.label || "Dashboard"}
           </h1>

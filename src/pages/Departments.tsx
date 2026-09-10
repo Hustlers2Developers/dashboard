@@ -13,6 +13,7 @@ import {
 import { GET_POSITIONS_BY_DEPARTMENT } from "@/graphql/mutations/positions";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
+import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import { Department, Organization, Position } from "@/graphql/graphql";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,10 +71,12 @@ const DepartmentUsersList = ({
   departmentId,
   usersMap,
   onRemoved,
+  canManage,
 }: {
   departmentId: string;
   usersMap: Map<string, AppUser>;
   onRemoved: () => void;
+  canManage: boolean;
 }) => {
   const { data, loading, refetch } = useQuery<{ departmentUsers: UserDepartment[] }>(
     GET_DEPARTMENT_USERS,
@@ -127,15 +130,17 @@ const DepartmentUsersList = ({
                 {position?.name || "Unknown position"}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              disabled={removing}
-              onClick={() => handleRemove(a.id)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {canManage && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                disabled={removing}
+                onClick={() => handleRemove(a.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         );
       })}
@@ -179,6 +184,11 @@ const Departments = () => {
   // regular org admin it's always their own org; for a SUPER_ADMIN it
   // follows whichever org is selected in the picker.
   const orgId = isSuperAdmin ? selectedOrgId : defaultOrgId;
+
+  // Department management is open to SUPER_ADMIN and to a user whose org
+  // membership role is literally named "Admin" — everyone else (plain
+  // members/viewers) gets read-only access.
+  const { isOrgAdmin: canManage } = useIsOrgAdmin(orgId);
 
   const { data, loading, refetch } = useQuery<
     { departmentsByOrganization: Department[] },
@@ -340,9 +350,13 @@ const Departments = () => {
                 </Select>
               </div>
             )}
-          <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setEditingId(null); setName(""); } }}>
+          <Dialog open={canManage && open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setEditingId(null); setName(""); } }}>
             <DialogTrigger asChild>
-              <Button className="gold-gradient text-primary-foreground hover:opacity-90" disabled={!orgId}>
+              <Button
+                className="gold-gradient text-primary-foreground hover:opacity-90"
+                disabled={!orgId || !canManage}
+                title={canManage ? undefined : "Only Admins and Super Admins can create departments"}
+              >
                 <Plus className="mr-2 h-4 w-4" /> New Department
               </Button>
             </DialogTrigger>
@@ -435,22 +449,26 @@ const Departments = () => {
                           <ChevronDown className="h-4 w-4" />
                         )}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
-                        onClick={() => openEditDialog(dept)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteTarget(dept)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canManage && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                            onClick={() => openEditDialog(dept)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteTarget(dept)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </CardHeader>
                   {expandedDept === dept.id && (
@@ -459,19 +477,22 @@ const Departments = () => {
                         <h5 className="text-sm font-medium text-foreground">
                           Assigned people
                         </h5>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openAssignDialog(dept)}
-                        >
-                          <UserPlus className="mr-2 h-3.5 w-3.5" />
-                          Assign
-                        </Button>
+                        {canManage && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAssignDialog(dept)}
+                          >
+                            <UserPlus className="mr-2 h-3.5 w-3.5" />
+                            Assign
+                          </Button>
+                        )}
                       </div>
                       <DepartmentUsersList
                         departmentId={dept.id}
                         usersMap={usersMap}
                         onRemoved={() => {}}
+                        canManage={canManage}
                       />
                     </CardContent>
                   )}

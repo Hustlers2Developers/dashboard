@@ -10,7 +10,18 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { User, Github, Linkedin, Globe, Phone, MapPin, Briefcase } from "lucide-react";
+import {
+  User,
+  Github,
+  Linkedin,
+  Globe,
+  Phone,
+  MapPin,
+  Briefcase,
+  Instagram,
+  Code2,
+  ExternalLink,
+} from "lucide-react";
 
 type UserDetails = {
   phoneNumber?: string | null;
@@ -37,29 +48,30 @@ type ProfileData = {
   details?: UserDetails | null;
 };
 
-// Renders a value as a clickable link in view mode. `href` is computed from
-// the raw value (e.g. turning a bare username into a full profile URL);
-// falls back to plain text when there's no value.
-const LinkValue = ({
-  value,
+// View-mode link chip — shows only an icon + platform name, never the raw
+// URL/username, and is directly clickable (opens in a new tab). The actual
+// value is only ever visible again once the user clicks Edit and it becomes
+// a plain text Input.
+const LinkPill = ({
   href,
+  label,
+  icon: Icon,
 }: {
-  value?: string | null;
-  href?: string | null;
-}) => {
-  if (!value) return <p className="text-sm text-foreground">—</p>;
-  if (!href) return <p className="text-sm text-foreground">{value}</p>;
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-sm text-accent hover:underline break-all"
-    >
-      {value}
-    </a>
-  );
-};
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+  >
+    <Icon className="h-3.5 w-3.5" />
+    {label}
+    <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+  </a>
+);
 
 const withProtocol = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
@@ -207,6 +219,7 @@ const Profile = () => {
                       src={profile.details.profilePicUrl}
                       alt={profile.name || profile.email}
                       onError={() => setAvatarError(true)}
+                      referrerPolicy="no-referrer"
                       className="h-16 w-16 shrink-0 rounded-full border border-border object-cover"
                     />
                   ) : (
@@ -313,99 +326,113 @@ const Profile = () => {
 
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-foreground">Links</p>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label><Github className="mr-1 inline h-3.5 w-3.5" />GitHub Username</Label>
-                      {editing ? (
+
+                  {editing ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label><Github className="mr-1 inline h-3.5 w-3.5" />GitHub Username</Label>
                         <Input name="githubUsername" value={form.githubUsername} onChange={handleChange} placeholder="alicejohnson" />
-                      ) : (
-                        <LinkValue
-                          value={profile?.details?.githubUsername}
-                          href={profile?.details?.githubUsername ? `https://github.com/${profile.details.githubUsername}` : null}
-                        />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label><Linkedin className="mr-1 inline h-3.5 w-3.5" />LinkedIn URL</Label>
-                      {editing ? (
+                      </div>
+                      <div className="space-y-2">
+                        <Label><Linkedin className="mr-1 inline h-3.5 w-3.5" />LinkedIn URL</Label>
                         <Input name="linkedInUrl" value={form.linkedInUrl} onChange={handleChange} placeholder="https://linkedin.com/in/..." />
-                      ) : (
-                        <LinkValue
-                          value={profile?.details?.linkedInUrl}
-                          href={profile?.details?.linkedInUrl ? withProtocol(profile.details.linkedInUrl) : null}
-                        />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label><Globe className="mr-1 inline h-3.5 w-3.5" />Portfolio URL</Label>
-                      {editing ? (
+                      </div>
+                      <div className="space-y-2">
+                        <Label><Globe className="mr-1 inline h-3.5 w-3.5" />Portfolio URL</Label>
                         <Input name="portfolioUrl" value={form.portfolioUrl} onChange={handleChange} placeholder="https://yoursite.dev" />
-                      ) : (
-                        <LinkValue
-                          value={profile?.details?.portfolioUrl}
-                          href={profile?.details?.portfolioUrl ? withProtocol(profile.details.portfolioUrl) : null}
-                        />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Profile Picture URL</Label>
-                      {editing ? (
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Profile Picture URL</Label>
                         <Input name="profilePicUrl" value={form.profilePicUrl} onChange={handleChange} placeholder="https://cdn.example.com/photo.jpg" />
-                      ) : profile?.details?.profilePicUrl ? (
-                        <a
-                          href={withProtocol(profile.details.profilePicUrl)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 group"
-                        >
-                          <img
-                            src={profile.details.profilePicUrl}
-                            alt="Profile"
-                            className="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
-                            onError={(e) => { e.currentTarget.style.display = "none"; }}
-                          />
-                          <span className="text-sm text-accent group-hover:underline break-all">
-                            {profile.details.profilePicUrl}
-                          </span>
-                        </a>
-                      ) : (
-                        <p className="text-sm text-foreground">—</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>LeetCode Username</Label>
-                      {editing ? (
+                      </div>
+                      <div className="space-y-2">
+                        <Label>LeetCode Username</Label>
                         <Input name="leetcodeUsername" value={form.leetcodeUsername} onChange={handleChange} placeholder="alice_lc" />
-                      ) : (
-                        <LinkValue
-                          value={profile?.details?.leetcodeUsername}
-                          href={profile?.details?.leetcodeUsername ? `https://leetcode.com/${profile.details.leetcodeUsername}` : null}
-                        />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>GeeksforGeeks Username</Label>
-                      {editing ? (
+                      </div>
+                      <div className="space-y-2">
+                        <Label>GeeksforGeeks Username</Label>
                         <Input name="gfgUsername" value={form.gfgUsername} onChange={handleChange} placeholder="alice_gfg" />
-                      ) : (
-                        <LinkValue
-                          value={profile?.details?.gfgUsername}
-                          href={profile?.details?.gfgUsername ? `https://www.geeksforgeeks.org/user/${profile.details.gfgUsername}` : null}
-                        />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Instagram URL</Label>
-                      {editing ? (
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Instagram URL</Label>
                         <Input name="instagramUrl" value={form.instagramUrl} onChange={handleChange} placeholder="https://instagram.com/..." />
-                      ) : (
-                        <LinkValue
-                          value={profile?.details?.instagramUrl}
-                          href={profile?.details?.instagramUrl ? withProtocol(profile.details.instagramUrl) : null}
-                        />
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Compact clickable chips — never show the raw URL/username here,
+                          only when Edit is clicked does the real value appear (as an input). */}
+                      <div className="flex flex-wrap gap-2">
+                        {profile?.details?.githubUsername && (
+                          <LinkPill
+                            icon={Github}
+                            label="GitHub"
+                            href={`https://github.com/${profile.details.githubUsername}`}
+                          />
+                        )}
+                        {profile?.details?.linkedInUrl && (
+                          <LinkPill
+                            icon={Linkedin}
+                            label="LinkedIn"
+                            href={withProtocol(profile.details.linkedInUrl)}
+                          />
+                        )}
+                        {profile?.details?.portfolioUrl && (
+                          <LinkPill
+                            icon={Globe}
+                            label="Portfolio"
+                            href={withProtocol(profile.details.portfolioUrl)}
+                          />
+                        )}
+                        {profile?.details?.leetcodeUsername && (
+                          <LinkPill
+                            icon={Code2}
+                            label="LeetCode"
+                            href={`https://leetcode.com/${profile.details.leetcodeUsername}`}
+                          />
+                        )}
+                        {profile?.details?.gfgUsername && (
+                          <LinkPill
+                            icon={Code2}
+                            label="GeeksforGeeks"
+                            href={`https://www.geeksforgeeks.org/user/${profile.details.gfgUsername}`}
+                          />
+                        )}
+                        {profile?.details?.instagramUrl && (
+                          <LinkPill
+                            icon={Instagram}
+                            label="Instagram"
+                            href={withProtocol(profile.details.instagramUrl)}
+                          />
+                        )}
+                        {!profile?.details?.githubUsername &&
+                          !profile?.details?.linkedInUrl &&
+                          !profile?.details?.portfolioUrl &&
+                          !profile?.details?.leetcodeUsername &&
+                          !profile?.details?.gfgUsername &&
+                          !profile?.details?.instagramUrl && (
+                            <p className="text-sm text-muted-foreground">
+                              No links added yet — click Edit to add some.
+                            </p>
+                          )}
+                      </div>
+
+                      {profile?.details?.profilePicUrl && (
+                        <div className="flex items-center gap-2 pt-1">
+                          {!avatarError && (
+                            <img
+                              src={profile.details.profilePicUrl}
+                              alt="Profile"
+                              className="h-6 w-6 shrink-0 rounded-full border border-border object-cover"
+                              onError={() => setAvatarError(true)}
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                          <span className="text-xs text-muted-foreground">Profile picture set</span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

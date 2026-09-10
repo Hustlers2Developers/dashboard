@@ -13,6 +13,16 @@ export const GET_MEMBERSHIPS = gql`
   }
 `;
 
+export const MY_ORG_ROLE = gql`
+  query MyOrgRole($organizationId: String!) {
+    myOrgRole(organizationId: $organizationId) {
+      roleId
+      roleName
+      isSystemRole
+    }
+  }
+`;
+
 export const GET_ORG_ROLES = gql`
   query OrgRoles($organizationId: String!) {
     orgRoles(organizationId: $organizationId) {

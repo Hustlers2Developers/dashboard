@@ -13,6 +13,7 @@ import {
   GET_MEMBERSHIPS,
   GET_ORG_ROLES,
 } from "@/graphql/mutations/memberships";
+import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/LoadingButton";
@@ -123,6 +124,11 @@ const initials = (user: AppUser) => {
 const Users = () => {
   const me = useAuthStore((s) => s.user);
   const isSuperAdmin = me?.systemRole === "SUPER_ADMIN";
+  // Org "Admin" role holders can view/manage the user directory (add to org,
+  // deactivate) alongside SUPER_ADMIN, but granting SUPER_ADMIN itself
+  // (Promote/Demote below) stays SUPER_ADMIN-only — that's platform-wide
+  // power no org-level role should be able to hand out.
+  const { isOrgAdmin: canManageUsers } = useIsOrgAdmin(me?.orgId);
 
   const [search, setSearch] = useState("");
   const [assignOpen, setAssignOpen] = useState(false);
@@ -301,7 +307,7 @@ const Users = () => {
     (u) => (membershipsByUser.get(u.id) ?? []).length === 0,
   ).length;
 
-  if (!isSuperAdmin) {
+  if (!canManageUsers) {
     return (
       <DashboardLayout>
         <Card className="border-border">
@@ -310,7 +316,7 @@ const Users = () => {
             <div>
               <p className="font-medium text-foreground">Restricted area</p>
               <p className="text-sm text-muted-foreground">
-                Only SUPER_ADMIN accounts can view the platform user directory.
+                Only Admins and Super Admins can view the user directory.
               </p>
             </div>
           </CardContent>

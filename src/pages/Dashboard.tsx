@@ -2,62 +2,44 @@ import { useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { GET_PROJECTS_BY_ORG } from "@/graphql/mutations/projects";
 import { GET_TEAMS_BY_ORG } from "@/graphql/mutations/teams";
-import { MY_STREAK, TOP_STREAKERS } from "@/graphql/mutations/attendance";
 import { DAILY_QUOTE } from "@/graphql/mutations/auth";
 import { Project, Team } from "@/graphql/graphql";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   FolderKanban,
   Users,
   Activity,
   TrendingUp,
-  Flame,
-  Snowflake,
-  Trophy,
-  ArrowUp,
-  ArrowDown,
-  Minus,
   Quote,
+  AlertCircle,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
 type DailyQuoteData = { text: string; author: string };
 
-type StreakInfo = {
-  currentStreak: number;
-  longestStreak: number;
-  freezesAvailable: number;
-  lastActivityDate?: string | null;
-};
-
-type StreakLeaderEntry = {
-  rank: number;
-  userId: string;
-  userName: string;
-  userAvatarUrl?: string | null;
-  currentStreak: number;
-  rankChange: string;
-};
-
-// The backend returns rankChange as a plain string, not a documented enum,
-// so this matches loosely (case-insensitive, common synonyms) rather than
-// assuming one exact literal value.
-const RankChangeIcon = ({ value }: { value: string }) => {
-  const v = value?.toLowerCase() ?? "";
-  if (v.includes("up") || v.startsWith("+"))
-    return <ArrowUp className="h-3.5 w-3.5 text-emerald-500" />;
-  if (v.includes("down") || v.startsWith("-"))
-    return <ArrowDown className="h-3.5 w-3.5 text-destructive" />;
-  return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
+// createdAt timestamps come across as epoch-ms strings, but treat a
+// missing/malformed value as absent rather than rendering "Invalid Date".
+const formatCreatedAt = (raw?: string | null) => {
+  if (!raw) return null;
+  const ms = parseInt(raw, 10);
+  if (Number.isNaN(ms)) return null;
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
 const Dashboard = () => {
   const user = useAuthStore((s) => s.user);
   const orgId = user?.orgId || "";
 
-  const { data: projectsData, loading: projectsLoading } = useQuery<
+  const {
+    data: projectsData,
+    loading: projectsLoading,
+    error: projectsError,
+    refetch: refetchProjects,
+  } = useQuery<
     { projectsByOrganization: Project[] },
     { organizationId: string }
   >(GET_PROJECTS_BY_ORG, {
@@ -65,7 +47,12 @@ const Dashboard = () => {
     skip: !orgId,
   });
 
-  const { data: teamsData, loading: teamsLoading } = useQuery<
+  const {
+    data: teamsData,
+    loading: teamsLoading,
+    error: teamsError,
+    refetch: refetchTeams,
+  } = useQuery<
     { teamsByOrganization: Team[] },
     { organizationId: string }
   >(GET_TEAMS_BY_ORG, {
@@ -73,25 +60,16 @@ const Dashboard = () => {
     skip: !orgId,
   });
 
-  const { data: streakData, loading: streakLoading } = useQuery<{ myStreak: StreakInfo }>(
-    MY_STREAK,
-  );
-  const { data: quoteData } = useQuery<{ dailyQuote: DailyQuoteData }>(DAILY_QUOTE, {
+  const { data: quoteData, loading: quoteLoading } = useQuery<{ dailyQuote: DailyQuoteData }>(DAILY_QUOTE, {
     // Stable for the whole UTC day server-side — no need to ever refetch
-    // within a session.
+    // within a session. A failure here is low-stakes (just a motivational
+    // line), so it silently omits the card rather than showing an error.
     fetchPolicy: "cache-first",
-  });
-  const { data: leaderboardData, loading: leaderboardLoading } = useQuery<{
-    topStreakers: StreakLeaderEntry[];
-  }>(TOP_STREAKERS, {
-    variables: { organizationId: orgId, limit: 5 },
-    skip: !orgId,
+    errorPolicy: "all",
   });
 
   const projects = projectsData?.projectsByOrganization || [];
   const teams = teamsData?.teamsByOrganization || [];
-  const myStreak = streakData?.myStreak;
-  const topStreakers = leaderboardData?.topStreakers ?? [];
 
   const stats = [
     {
@@ -129,7 +107,15 @@ const Dashboard = () => {
         </div>
 
         {/* Daily motivation — fresh on every visit, consistent for the day */}
-        {quoteData?.dailyQuote && (
+        {quoteLoading ? (
+          <div className="premium-card flex items-start gap-3 p-5">
+            <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+          </div>
+        ) : quoteData?.dailyQuote ? (
           <div className="premium-card flex items-start gap-3 p-5">
             <div className="glow-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Quote className="h-4 w-4 text-primary" />
@@ -141,7 +127,7 @@ const Dashboard = () => {
               <p className="mt-1 text-xs text-muted-foreground">— {quoteData.dailyQuote.author}</p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -158,90 +144,15 @@ const Dashboard = () => {
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   <div className="text-2xl font-bold text-foreground">
-                    {stat.value}
+                    {(projectsError && (stat.label === "Total Projects" || stat.label === "Recent Activity")) ||
+                    (teamsError && (stat.label === "Active Teams" || stat.label === "Recent Activity"))
+                      ? "—"
+                      : stat.value}
                   </div>
                 )}
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        {/* Streak + Leaderboard */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="premium-card border-0">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Your streak
-              </CardTitle>
-              <Flame className="h-5 w-5 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              {streakLoading ? (
-                <Skeleton className="h-16 w-full" />
-              ) : myStreak ? (
-                <div className="space-y-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-foreground">
-                      {myStreak.currentStreak}
-                    </span>
-                    <span className="text-sm text-muted-foreground">day streak</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>Best: {myStreak.longestStreak}</span>
-                    <span className="flex items-center gap-1">
-                      <Snowflake className="h-3 w-3 text-sky-500" />
-                      {myStreak.freezesAvailable} freeze{myStreak.freezesAvailable === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No activity yet.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="premium-card border-0 lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                Top streakers
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {leaderboardLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
-                </div>
-              ) : topStreakers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No streak data yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {topStreakers.map((entry) => (
-                    <div
-                      key={entry.userId}
-                      className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Badge variant="secondary" className="w-7 justify-center text-xs">
-                          #{entry.rank}
-                        </Badge>
-                        <span className="text-sm font-medium text-foreground">
-                          {entry.userName}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <RankChangeIcon value={entry.rankChange} />
-                        <span className="flex items-center gap-1 text-sm text-foreground">
-                          <Flame className="h-3.5 w-3.5 text-orange-500" />
-                          {entry.currentStreak}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Recent Projects */}
@@ -255,6 +166,14 @@ const Dashboard = () => {
                 {[1, 2, 3].map((i) => (
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
+              </div>
+            ) : projectsError ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+                <p className="text-sm text-muted-foreground">Couldn't load projects. {projectsError.message}</p>
+                <Button variant="outline" size="sm" onClick={() => void refetchProjects()}>
+                  Retry
+                </Button>
               </div>
             ) : projects.length === 0 ? (
               <p className="py-8 text-center text-muted-foreground">
@@ -275,12 +194,11 @@ const Dashboard = () => {
                         {project.description || "No description"}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(parseInt(project.createdAt)).toLocaleDateString(
-                        "en-US",
-                        { year: "numeric", month: "short", day: "numeric" },
-                      )}
-                    </span>
+                    {formatCreatedAt(project.createdAt) && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatCreatedAt(project.createdAt)}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -300,39 +218,43 @@ const Dashboard = () => {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
+            ) : teamsError ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+                <p className="text-sm text-muted-foreground">Couldn't load teams. {teamsError.message}</p>
+                <Button variant="outline" size="sm" onClick={() => void refetchTeams()}>
+                  Retry
+                </Button>
+              </div>
             ) : teams.length === 0 ? (
               <p className="py-8 text-center text-muted-foreground">
                 No teams yet.
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {teams.slice(0, 6).map((team: Team) => (
-                  <div
-                    key={team.id}
-                    className="rounded-lg border border-border bg-background p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                        <Users className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-foreground">
-                          {team.name}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          Created{" "}
-                          {new Date(
-                            parseInt(team.createdAt),
-                          ).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </p>
+                {teams.slice(0, 6).map((team: Team) => {
+                  const createdLabel = formatCreatedAt(team.createdAt);
+                  return (
+                    <div
+                      key={team.id}
+                      className="rounded-lg border border-border bg-background p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                          <Users className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">
+                            {team.name}
+                          </h4>
+                          {createdLabel && (
+                            <p className="text-xs text-muted-foreground">Created {createdLabel}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

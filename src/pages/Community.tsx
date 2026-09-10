@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users2, Search, Mail, MessageCircle, ArrowUpRight } from "lucide-react";
@@ -50,7 +51,7 @@ const Community = () => {
   const orgId = useAuthStore((s) => s.user?.orgId) || "";
   const [search, setSearch] = useState("");
 
-  const { data, loading, error } = useQuery<{ getAllUsers: CommunityUser[] }>(GET_ALL_USERS, {
+  const { data, loading, error, refetch } = useQuery<{ getAllUsers: CommunityUser[] }>(GET_ALL_USERS, {
     variables: { orgId },
     skip: !orgId,
     fetchPolicy: "cache-first",
@@ -135,7 +136,12 @@ const Community = () => {
           </div>
         ) : error ? (
           <Card className="border-border">
-            <CardContent className="p-6 text-sm text-destructive">{error.message}</CardContent>
+            <CardContent className="flex flex-col items-start gap-3 p-6">
+              <p className="text-sm text-destructive">Couldn't load the community list. {error.message}</p>
+              <Button variant="outline" size="sm" onClick={() => void refetch()}>
+                Retry
+              </Button>
+            </CardContent>
           </Card>
         ) : members.length === 0 ? (
           <Card className="border-border">

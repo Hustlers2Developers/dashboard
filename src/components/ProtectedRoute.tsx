@@ -5,6 +5,10 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { RECORD_DAILY_VISIT } from '@/graphql/mutations/attendance';
 import { CURRENT_USER_QUERY } from '@/graphql/mutations/auth';
 import { RedirectLoader } from '@/components/RedirectLoader';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Card, CardContent } from '@/components/ui/card';
+import { ShieldAlert } from 'lucide-react';
 
 // Module-level (not a ref) because ProtectedRoute remounts on every route
 // change — each <Route> in App.tsx wraps its own <ProtectedRoute> instance,
@@ -12,10 +16,37 @@ import { RedirectLoader } from '@/components/RedirectLoader';
 // DB-backed mutation on every single page visit instead of once per tab.
 let dailyVisitRecordedThisSession = false;
 
-export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const RestrictedAreaFallback = () => (
+  <DashboardLayout>
+    <Card className="border-border">
+      <CardContent className="flex items-start gap-3 p-6">
+        <ShieldAlert className="mt-1 h-5 w-5 text-destructive" />
+        <div>
+          <p className="font-medium text-foreground">Restricted area</p>
+          <p className="text-sm text-muted-foreground">
+            Only Admins and Super Admins can access this page.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  </DashboardLayout>
+);
+
+export const ProtectedRoute = ({
+  children,
+  adminOnly = false,
+}: {
+  children: React.ReactNode;
+  /** Blocks direct navigation for non-SUPER_ADMIN users — real enforcement,
+   * not just hiding the nav link. Use for every admin-facing page (Invites,
+   * Departments, Positions, Organizations, Attendance, Applications,
+   * Services, Analytics, Users). */
+  adminOnly?: boolean;
+}) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const loading = useAuthStore((s) => s.loading);
   const setUser = useAuthStore((s) => s.setUser);
+  const user = useAuthStore((s) => s.user);
   const location = useLocation();
   const [recordDailyVisit] = useMutation(RECORD_DAILY_VISIT);
 
@@ -63,5 +94,17 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return <div key={location.pathname} className="animate-fade-in">{children}</div>;
+  // Real access control for admin-only pages — blocks direct URL navigation
+  // for non-admins, not just hiding the nav link. currentUserData may still
+  // be loading on first mount; user (from persisted store) covers that gap
+  // so a stale/missing systemRole doesn't briefly flash the real page.
+  if (adminOnly && user?.systemRole !== 'SUPER_ADMIN') {
+    return <RestrictedAreaFallback />;
+  }
+
+  return (
+    <div key={location.pathname} className="animate-fade-in">
+      <ErrorBoundary section="This page">{children}</ErrorBoundary>
+    </div>
+  );
 };

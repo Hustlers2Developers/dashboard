@@ -9,6 +9,7 @@ import {
 } from "@/graphql/mutations/positions";
 import { GET_DEPARTMENTS_BY_ORG } from "@/graphql/mutations/departments";
 import { GET_ALL_ORGANIZATIONS } from "@/graphql/mutations/organizations";
+import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import { Department, Organization, Position } from "@/graphql/graphql";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +76,11 @@ const Positions = () => {
   }, [isSuperAdmin, organizations, selectedOrgId]);
 
   const orgId = isSuperAdmin ? selectedOrgId : defaultOrgId;
+
+  // Position management is open to SUPER_ADMIN and to a user whose org
+  // membership role is literally named "Admin" — everyone else (plain
+  // members/viewers) gets read-only access.
+  const { isOrgAdmin: canManage } = useIsOrgAdmin(orgId);
 
   const { data: deptData, loading: deptLoading } = useQuery<
     { departmentsByOrganization: Department[] },
@@ -199,9 +205,13 @@ const Positions = () => {
                 </Select>
               </div>
             )}
-          <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setEditingId(null); setName(""); setSelectedDeptId(""); } }}>
+          <Dialog open={canManage && open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setEditingId(null); setName(""); setSelectedDeptId(""); } }}>
             <DialogTrigger asChild>
-              <Button className="gold-gradient text-primary-foreground hover:opacity-90" disabled={!orgId}>
+              <Button
+                className="gold-gradient text-primary-foreground hover:opacity-90"
+                disabled={!orgId || !canManage}
+                title={canManage ? undefined : "Only Admins and Super Admins can create positions"}
+              >
                 <Plus className="mr-2 h-4 w-4" /> New Position
               </Button>
             </DialogTrigger>
@@ -292,24 +302,26 @@ const Positions = () => {
                       </Badge>
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
-                      onClick={() => openEditDialog(pos)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteTarget(pos)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {canManage && (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                        onClick={() => openEditDialog(pos)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteTarget(pos)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">

@@ -174,22 +174,30 @@ const Memberships = () => {
   // able to surface any registered user regardless of which org is currently
   // selected, not just users already in the admin's own org. SUPER_ADMIN
   // only (allPlatformUsers is an admin-only query).
-  const { data: platformUsersData, loading: loadingUsers } = useQuery<{ allPlatformUsers: AppUser[] }>(
-    ALL_PLATFORM_USERS,
-    {
-      skip: !isSuperAdmin,
-    },
-  );
+  const {
+    data: platformUsersData,
+    loading: loadingPlatformUsers,
+    error: platformUsersError,
+  } = useQuery<{ allPlatformUsers: AppUser[] }>(ALL_PLATFORM_USERS, {
+    skip: !isSuperAdmin,
+  });
 
   // Non-admins can't call allPlatformUsers, but they can still see their own
   // org's roster via getAllUsers — needed so the member list below can show
   // real names instead of falling back to a raw userId (previously it did,
   // since usersById was always empty for non-admins).
-  const { data: orgUsersData } = useQuery<{ getAllUsers: AppUser[] }>(GET_ALL_USERS, {
+  const {
+    data: orgUsersData,
+    loading: loadingOrgUsers,
+    error: orgUsersError,
+  } = useQuery<{ getAllUsers: AppUser[] }>(GET_ALL_USERS, {
     variables: { orgId: selectedOrgId || undefined },
     skip: isSuperAdmin || !selectedOrgId,
     fetchPolicy: "cache-first",
   });
+
+  const loadingUsers = isSuperAdmin ? loadingPlatformUsers : loadingOrgUsers;
+  const usersError = isSuperAdmin ? platformUsersError : orgUsersError;
 
   const [createMembership, { loading: creatingMembership }] = useMutation(CREATE_MEMBERSHIP);
   const [updateMemberRole, { loading: updatingRole }] = useMutation(UPDATE_MEMBER_ROLE);
@@ -535,7 +543,7 @@ const Memberships = () => {
                     Select an organization to load its members and available roles.
                   </p>
                 </div>
-              ) : loadingMemberships || loadingRoles ? (
+              ) : loadingMemberships || loadingRoles || loadingUsers ? (
                 <div className="space-y-3">
                   {[1, 2, 3, 4].map((item) => (
                     <Skeleton key={item} className="h-14 w-full rounded-lg" />
@@ -569,7 +577,13 @@ const Memberships = () => {
                   </p>
                 </div>
               ) : (
-                <Table>
+                <>
+                  {usersError && (
+                    <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+                      Couldn't load member names/emails — showing IDs instead. {usersError.message}
+                    </div>
+                  )}
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Member</TableHead>
@@ -598,10 +612,13 @@ const Memberships = () => {
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              <p className="font-medium text-foreground">{role?.name || membership.roleId}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {role?.description || "Role description unavailable"}
-                              </p>
+                              <Badge
+                                variant="outline"
+                                className="text-xs font-medium"
+                                title={role?.description || undefined}
+                              >
+                                {role?.name || membership.roleId}
+                              </Badge>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -611,32 +628,37 @@ const Memberships = () => {
                           </TableCell>
                           <TableCell>{formatDate(membership.joinedAt)}</TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openRoleDialog(membership)}
-                                disabled={loadingRoles}
-                              >
-                                Change role
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setRemoveTarget(membership)}
-                                disabled={removingMember}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Remove
-                              </Button>
-                            </div>
+                            {isSuperAdmin ? (
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openRoleDialog(membership)}
+                                  disabled={loadingRoles}
+                                >
+                                  Change role
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => setRemoveTarget(membership)}
+                                  disabled={removingMember}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Remove
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">View only</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
-                </Table>
+                  </Table>
+                </>
               )}
             </CardContent>
           </Card>

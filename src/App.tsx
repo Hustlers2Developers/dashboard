@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthEventBridge } from "@/components/AuthEventBridge";
 import { AuthProvider } from "@/components/AuthProvider";
 import { OnboardingModal } from "@/components/OnboardingModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuthStore } from "@/stores/auth-store";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -21,6 +22,7 @@ import Departments from "./pages/Departments";
 import Positions from "./pages/Positions";
 import Invite from "./pages/Invite";
 import Attendance from "./pages/Attendance";
+import Streak from "./pages/Streak";
 import Organizations from "./pages/Organizations";
 import Memberships from "./pages/Memberships";
 import Users from "./pages/Users";
@@ -53,6 +55,7 @@ const App = () => (
           <AuthProvider>
           <AuthEventBridge />
           <OnboardingGate />
+          <ErrorBoundary section="App">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -92,7 +95,7 @@ const App = () => (
             <Route
               path="/departments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Departments />
                 </ProtectedRoute>
               }
@@ -100,7 +103,7 @@ const App = () => (
             <Route
               path="/positions"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Positions />
                 </ProtectedRoute>
               }
@@ -108,15 +111,23 @@ const App = () => (
             <Route
               path="/attendance"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Attendance />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/streak"
+              element={
+                <ProtectedRoute>
+                  <Streak />
                 </ProtectedRoute>
               }
             />
             <Route
               path="/invites"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Invite />
                 </ProtectedRoute>
               }
@@ -132,6 +143,9 @@ const App = () => (
             <Route
               path="/users"
               element={
+                // Not adminOnly here — this page allows org "Admin" role
+                // holders too, not just SUPER_ADMIN, and enforces that
+                // nuance itself (see Users.tsx's canManageUsers check).
                 <ProtectedRoute>
                   <Users />
                 </ProtectedRoute>
@@ -140,7 +154,7 @@ const App = () => (
             <Route
               path="/organizations"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Organizations />
                 </ProtectedRoute>
               }
@@ -172,7 +186,7 @@ const App = () => (
             <Route
               path="/services"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Services />
                 </ProtectedRoute>
               }
@@ -180,7 +194,7 @@ const App = () => (
             <Route
               path="/analytics"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Analytics />
                 </ProtectedRoute>
               }
@@ -192,13 +206,14 @@ const App = () => (
             <Route
               path="/applications"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <GuestApplications />
                 </ProtectedRoute>
               }
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ErrorBoundary>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
