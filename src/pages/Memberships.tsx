@@ -606,7 +606,7 @@ const Memberships = () => {
                                 {member?.name || "Unnamed user"}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                {member?.email || membership.userId}
+                                {member?.email || "No email on file"}
                               </p>
                             </div>
                           </TableCell>
@@ -617,7 +617,7 @@ const Memberships = () => {
                                 className="text-xs font-medium"
                                 title={role?.description || undefined}
                               >
-                                {role?.name || membership.roleId}
+                                {role?.name || "Unknown role"}
                               </Badge>
                             </div>
                           </TableCell>
@@ -720,7 +720,7 @@ const Memberships = () => {
                   {editingMembership
                     ? usersById[editingMembership.userId]?.name ||
                       usersById[editingMembership.userId]?.email ||
-                      editingMembership.userId
+                      "Unknown member"
                     : "No member selected"}
                 </div>
               </div>
@@ -759,7 +759,7 @@ const Memberships = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove member?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{removeTarget ? (usersById[removeTarget.userId]?.name || usersById[removeTarget.userId]?.email || removeTarget.userId) : ""}</strong> will be removed from this organization.
+              <strong>{removeTarget ? (usersById[removeTarget.userId]?.name || usersById[removeTarget.userId]?.email || "This member") : ""}</strong> will be removed from this organization.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

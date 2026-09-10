@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -6,8 +6,9 @@ import {
   ATTENDANCE_BY_ORGANIZATION,
   BULK_MARK_ATTENDANCE,
 } from "@/graphql/mutations/attendance";
+import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
@@ -118,6 +119,24 @@ const Attendance = () => {
       skip: !orgId || !isAdmin,
     });
 
+  // Resolves each row's raw userId to a real name/email — without this the
+  // table and bulk-mark list only ever show truncated UUIDs.
+  type AppUser = { id: string; name?: string | null; email: string };
+  const { data: usersData } = useQuery<{ getAllUsers: AppUser[] }>(GET_ALL_USERS, {
+    variables: { orgId: orgId || undefined },
+    skip: !orgId || !isAdmin,
+    fetchPolicy: "cache-first",
+  });
+  const usersMap = useMemo(() => {
+    const map = new Map<string, AppUser>();
+    (usersData?.getAllUsers ?? []).forEach((u) => map.set(u.id, u));
+    return map;
+  }, [usersData]);
+  const displayName = (userId: string) => {
+    const u = usersMap.get(userId);
+    return u?.name || u?.email || `${userId.slice(0, 8)}…`;
+  };
+
   // ── Bulk mark attendance ──
   const [bulkDate, setBulkDate] = useState(todayISO());
   const [bulkStatus, setBulkStatus] = useState<Record<string, "PRESENT" | "ABSENT">>({});
@@ -168,8 +187,10 @@ const Attendance = () => {
           </div>
         </div>
 
-        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <Info className="h-3.5 w-3.5 text-primary" />
+          </div>
           <p className="text-sm text-muted-foreground">
             Presence is being moved to automatic detection (active 15+ minutes on any service marks a day present) —
             manual check-in has been removed while that's built. Use Bulk Mark below for manual overrides in the meantime.
@@ -178,55 +199,55 @@ const Attendance = () => {
 
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Days</CardTitle>
-              <BarChart3 className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              {summaryLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-2xl font-bold text-foreground">{summary?.totalDays ?? 0}</div>
-              )}
-            </CardContent>
-          </Card>
+          <div className="premium-card p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">Total Days</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                <BarChart3 className="h-4 w-4 text-primary" />
+              </div>
+            </div>
+            {summaryLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold text-foreground">{summary?.totalDays ?? 0}</div>
+            )}
+          </div>
 
-          <Card className="border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Present Days</CardTitle>
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              {summaryLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-2xl font-bold text-foreground">{summary?.presentDays ?? 0}</div>
-              )}
-            </CardContent>
-          </Card>
+          <div className="premium-card p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">Present Days</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              </div>
+            </div>
+            {summaryLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold text-foreground">{summary?.presentDays ?? 0}</div>
+            )}
+          </div>
 
-          <Card className="border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Attendance %</CardTitle>
-              <Activity className="h-5 w-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-              {summaryLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : summaryError ? (
-                <p className="text-xs text-destructive">Couldn't load.{" "}
-                  <button className="underline" onClick={() => void refetchSummary()}>Retry</button>
-                </p>
-              ) : (
-                <div className="text-2xl font-bold text-foreground">{summary?.attendancePercentage?.toFixed(1) ?? 0}%</div>
-              )}
-            </CardContent>
-          </Card>
+          <div className="premium-card p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">Attendance %</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10">
+                <Activity className="h-4 w-4 text-accent" />
+              </div>
+            </div>
+            {summaryLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : summaryError ? (
+              <p className="text-xs text-destructive">Couldn't load.{" "}
+                <button className="underline" onClick={() => void refetchSummary()}>Retry</button>
+              </p>
+            ) : (
+              <div className="text-2xl font-bold text-foreground">{summary?.attendancePercentage?.toFixed(1) ?? 0}%</div>
+            )}
+          </div>
         </div>
 
         {/* Org Attendance Table */}
-        <Card className="border-border">
+        <div className="premium-card">
           <CardHeader>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <CardTitle className="flex items-center gap-2">
@@ -281,7 +302,7 @@ const Attendance = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="pb-2 pr-4 font-medium">User ID</th>
+                      <th className="pb-2 pr-4 font-medium">Member</th>
                       <th className="pb-2 pr-4 font-medium">Date</th>
                       <th className="pb-2 pr-4 font-medium">Status</th>
                       <th className="pb-2 pr-4 font-medium">Check In</th>
@@ -291,8 +312,8 @@ const Attendance = () => {
                   <tbody className="divide-y divide-border">
                     {orgAttendanceRows.map((row) => (
                       <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 pr-4 text-xs text-muted-foreground font-mono">
-                          {row.userId.slice(0, 8)}…
+                        <td className="py-3 pr-4 font-medium text-foreground">
+                          {displayName(row.userId)}
                         </td>
                         <td className="py-3 pr-4 text-foreground">
                           {formatDate(row.date)}
@@ -313,12 +334,15 @@ const Attendance = () => {
               </div>
             )}
           </CardContent>
-        </Card>
+        </div>
 
         {/* Bulk Mark Attendance */}
-        <Card className="border-border">
+        <div className="premium-card">
           <CardHeader>
-            <CardTitle>Bulk Mark Attendance</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarCheck className="h-4 w-4 text-primary" />
+              Bulk Mark Attendance
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
@@ -343,10 +367,10 @@ const Attendance = () => {
                   {uniqueUserIds.map((uid) => (
                     <div
                       key={uid}
-                      className="flex items-center justify-between rounded-lg border border-border p-3"
+                      className="flex items-center justify-between rounded-lg border border-border bg-background p-3 transition-colors hover:border-primary/30"
                     >
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {uid.slice(0, 12)}…
+                      <span className="text-sm font-medium text-foreground">
+                        {displayName(uid)}
                       </span>
                       <div className="flex gap-2">
                         {(["PRESENT", "ABSENT"] as const).map((s) => (
@@ -382,7 +406,7 @@ const Attendance = () => {
               </>
             )}
           </CardContent>
-        </Card>
+        </div>
       </div>
     </DashboardLayout>
   );

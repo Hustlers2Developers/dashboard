@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
@@ -177,12 +178,12 @@ const Community = () => {
 
         <p className="text-center text-xs text-muted-foreground">
           Showing name and email for every member.{" "}
-          <a
-            href="/profile"
+          <Link
+            to="/profile"
             className="text-accent hover:underline"
           >
             Add your LinkedIn or GitHub to your profile
-          </a>{" "}
+          </Link>{" "}
           — a public directory view is on the way.
         </p>
       </div>

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   User,
@@ -21,6 +22,8 @@ import {
   Instagram,
   Code2,
   ExternalLink,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 type UserDetails = {
@@ -91,6 +94,11 @@ const Profile = () => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  // Not persisted yet — UserDetails has no isPublic field on the backend
+  // (see BACKEND_COMMUNITY_DIRECTORY.md). Defaults to public (matches
+  // today's actual behavior: name+email already show to everyone in
+  // Community). Wire this to updateProfile once that field exists.
+  const [isPublic, setIsPublic] = useState(true);
 
   const { data, loading, error, refetch } = useQuery<{ myProfile: ProfileData }>(MY_PROFILE, {
     fetchPolicy: "cache-first",
@@ -234,6 +242,35 @@ const Profile = () => {
                 </CardContent>
               </Card>
             )}
+
+            <Card className="border-border">
+              <CardContent className="flex items-center justify-between gap-4 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    {isPublic ? (
+                      <Eye className="h-4 w-4 text-primary" />
+                    ) : (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Profile visibility</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isPublic
+                        ? "Your details are visible to other members in Community."
+                        : "Your details are hidden from other members."}
+                    </p>
+                  </div>
+                </div>
+                <Switch checked={isPublic} onCheckedChange={setIsPublic} disabled />
+              </CardContent>
+              <CardContent className="pt-0">
+                <p className="text-xs text-muted-foreground">
+                  Coming soon — this preference isn't saved yet. Your name and email are always visible in Community regardless.
+                </p>
+              </CardContent>
+            </Card>
+
           <form onSubmit={handleSave}>
             <Card className="border-border">
               <CardHeader className="flex flex-row items-center justify-between">
