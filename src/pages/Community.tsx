@@ -189,7 +189,6 @@ const Community = () => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((member) => {
               const details = member.details;
-              const hasExtras = details?.title || details?.bio || details?.githubUsername || details?.linkedInUrl;
               return (
                 <div key={member.id} className="premium-card flex flex-col gap-3 p-5">
                   <div className="flex items-center gap-3">
@@ -242,11 +241,6 @@ const Community = () => {
                     </div>
                   )}
 
-                  {!hasExtras && (
-                    <p className="text-[11px] text-muted-foreground/70">
-                      No extra details shared yet.
-                    </p>
-                  )}
                 </div>
               );
             })}
