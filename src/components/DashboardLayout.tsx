@@ -128,7 +128,7 @@ export const DashboardLayout = ({
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center gap-2.5 border-b border-border px-4">
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border px-4">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg gold-gradient">
             <span className="text-sm font-bold text-primary-foreground">G</span>
           </div>
@@ -145,8 +145,10 @@ export const DashboardLayout = ({
           </Button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 space-y-1 p-4">
+        {/* Nav — scrolls independently so a long item list (SUPER_ADMIN sees
+            up to 16 links) never pushes the Logout section below the
+            viewport; the aside itself doesn't scroll. */}
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {navItems.map((item) => {
             const isActive =
               location.pathname === item.to ||
@@ -163,22 +165,23 @@ export const DashboardLayout = ({
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                 )}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className="h-5 w-5 shrink-0" />
                 {item.label}
-                {isActive && <ChevronRight className="ml-auto h-4 w-4" />}
+                {isActive && <ChevronRight className="ml-auto h-4 w-4 shrink-0" />}
               </Link>
             );
           })}
         </nav>
 
-        {/* User / Logout */}
-        <div className="border-t border-border p-4">
+        {/* User / Logout — shrink-0 so it always stays pinned to the
+            bottom of the sidebar and is never squeezed out or clipped. */}
+        <div className="shrink-0 border-t border-border p-4">
           <div className="mb-3 truncate text-sm text-muted-foreground">
             {user?.email}
           </div>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground"
+            className="w-full justify-start gap-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4" />

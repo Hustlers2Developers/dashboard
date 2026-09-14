@@ -118,3 +118,68 @@ export const RECORD_DAILY_VISIT = gql`
     }
   }
 `;
+
+export const MY_LEADERBOARD_RANK = gql`
+  query MyLeaderboardRank($organizationId: String) {
+    myLeaderboardRank(organizationId: $organizationId) {
+      rank
+      currentStreak
+      totalParticipants
+    }
+  }
+`;
+
+export const ACTIVE_WEEKLY_CHALLENGE = gql`
+  query ActiveWeeklyChallenge {
+    activeWeeklyChallenge {
+      id
+      title
+      description
+      targetDays
+      endsAt
+      badgeName
+      myProgress
+    }
+  }
+`;
+
+export const DAILY_QUOTE = gql`
+  query DailyQuote {
+    dailyQuote {
+      text
+      author
+    }
+  }
+`;
+
+export const ORG_MEMBERS_STREAKS = gql`
+  query OrgMembersStreaks($organizationId: String!) {
+    orgMembersStreaks(organizationId: $organizationId) {
+      userId
+      name
+      email
+      currentStreak
+      longestStreak
+      freezesAvailable
+      lastActivityDate
+    }
+  }
+`;
+
+export const MEETING_ATTENDANCE_BY_ORGANIZATION = gql`
+  query MeetingAttendanceByOrganization($input: MeetingAttendanceFilterInput!) {
+    meetingAttendanceByOrganization(input: $input) {
+      id
+      title
+      scheduledAt
+      attendedCount
+      missedCount
+      attendances {
+        userId
+        userName
+        userEmail
+        status
+      }
+    }
+  }
+`;
