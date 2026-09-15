@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { MY_PROFILE, UPDATE_PROFILE } from "@/graphql/mutations/users";
+import { LINK_TELEGRAM_ACCOUNT, UNLINK_TELEGRAM_ACCOUNT } from "@/graphql/mutations/telegram";
+import { TelegramLoginWidget, type TelegramAuthPayload } from "@/components/TelegramLoginWidget";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/LoadingButton";
@@ -24,7 +26,10 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  Send,
 } from "lucide-react";
+
+const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "";
 
 type UserDetails = {
   phoneNumber?: string | null;
@@ -102,8 +107,20 @@ const Profile = () => {
   });
 
   const [updateProfile] = useMutation(UPDATE_PROFILE);
+  const [linkTelegramAccount] = useMutation(LINK_TELEGRAM_ACCOUNT);
+  const [unlinkTelegramAccount] = useMutation(UNLINK_TELEGRAM_ACCOUNT);
 
   const profile = data?.myProfile;
+
+  // The backend doesn't expose telegram link status on myProfile — only the
+  // link/unlink mutations return it — so we track it locally from whichever
+  // mutation last ran. Resets to "unknown" (null) on reload; the widget/
+  // unlink button below handle that as "not shown as linked" rather than
+  // asserting "definitely not linked".
+  type TelegramLinkState = { telegramUserId?: string | null; telegramUsername?: string | null } | null;
+  const [telegramLink, setTelegramLink] = useState<TelegramLinkState>(null);
+  const [linkingTelegram, setLinkingTelegram] = useState(false);
+  const [unlinkingTelegram, setUnlinkingTelegram] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -197,6 +214,33 @@ const Profile = () => {
     }
   };
 
+  const handleTelegramAuth = async (payload: TelegramAuthPayload) => {
+    setLinkingTelegram(true);
+    try {
+      const result = await linkTelegramAccount({ variables: { input: payload } });
+      const linked = result.data?.linkTelegramAccount;
+      setTelegramLink({ telegramUserId: linked?.telegramUserId, telegramUsername: linked?.telegramUsername });
+      toast.success("Telegram account linked. Your channel join requests will be auto-approved.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not link Telegram account.");
+    } finally {
+      setLinkingTelegram(false);
+    }
+  };
+
+  const handleTelegramUnlink = async () => {
+    setUnlinkingTelegram(true);
+    try {
+      await unlinkTelegramAccount();
+      setTelegramLink({ telegramUserId: null, telegramUsername: null });
+      toast.success("Telegram account unlinked.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not unlink Telegram account.");
+    } finally {
+      setUnlinkingTelegram(false);
+    }
+  };
+
   const formatDate = (val?: string | null) => {
     if (!val) return "—";
     const d = new Date(val);
@@ -285,6 +329,50 @@ const Profile = () => {
                   Your name and email are always visible in Community regardless of this setting.
                 </p>
               </CardContent>
+            </Card>
+
+            <Card className="border-border">
+              <CardContent className="flex items-center justify-between gap-4 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <Send className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Telegram</p>
+                    <p className="text-xs text-muted-foreground">
+                      {telegramLink?.telegramUserId
+                        ? `Linked as @${telegramLink.telegramUsername || telegramLink.telegramUserId}. Your join requests on the org channel are auto-approved.`
+                        : "Link your Telegram account so channel join requests are auto-approved."}
+                    </p>
+                  </div>
+                </div>
+                {telegramLink?.telegramUserId && (
+                  <LoadingButton
+                    variant="outline"
+                    size="sm"
+                    loading={unlinkingTelegram}
+                    loadingText="Unlinking..."
+                    onClick={handleTelegramUnlink}
+                  >
+                    Unlink
+                  </LoadingButton>
+                )}
+              </CardContent>
+              {!telegramLink?.telegramUserId && (
+                <CardContent className="pt-0">
+                  {TELEGRAM_BOT_USERNAME ? (
+                    <TelegramLoginWidget
+                      botUsername={TELEGRAM_BOT_USERNAME}
+                      onAuth={handleTelegramAuth}
+                      disabled={linkingTelegram}
+                    />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Telegram login isn't configured for this deployment yet.
+                    </p>
+                  )}
+                </CardContent>
+              )}
             </Card>
 
           <form onSubmit={handleSave}>

@@ -3,13 +3,17 @@ import { gql } from '@apollo/client';
 // ─── User Queries ────────────────────────────────────────────────────────────
 
 export const MY_ATTENDANCE = gql`
-  query MyAttendance($startDate: String, $endDate: String) {
-    myAttendance(startDate: $startDate, endDate: $endDate) {
-      id
-      date
-      status
-      checkInTime
-      checkOutTime
+  query MyAttendance($startDate: String, $endDate: String, $limit: Int, $offset: Int) {
+    myAttendance(startDate: $startDate, endDate: $endDate, limit: $limit, offset: $offset) {
+      items {
+        id
+        date
+        status
+        checkInTime
+        checkOutTime
+      }
+      total
+      hasMore
     }
   }
 `;
@@ -50,12 +54,16 @@ export const MY_STREAK = gql`
 export const ATTENDANCE_BY_ORGANIZATION = gql`
   query AttendanceByOrganization($input: AttendanceFilterInput!) {
     attendanceByOrganization(input: $input) {
-      id
-      userId
-      date
-      status
-      checkInTime
-      checkOutTime
+      items {
+        id
+        userId
+        date
+        status
+        checkInTime
+        checkOutTime
+      }
+      total
+      hasMore
     }
   }
 `;

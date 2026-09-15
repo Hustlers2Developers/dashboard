@@ -137,10 +137,12 @@ const Attendance = () => {
   const [orgStartDate, setOrgStartDate] = useState(firstDayOfMonthISO());
   const [orgEndDate, setOrgEndDate] = useState(todayISO());
 
+  type PaginatedAttendance = { items: AttendanceRow[]; total: number; hasMore: boolean };
+
   const { data: orgAttendanceData, loading: orgAttendanceLoading, error: orgAttendanceError, refetch: refetchOrgAttendance } =
-    useQuery<{ attendanceByOrganization: AttendanceRow[] }>(ATTENDANCE_BY_ORGANIZATION, {
+    useQuery<{ attendanceByOrganization: PaginatedAttendance }>(ATTENDANCE_BY_ORGANIZATION, {
       variables: {
-        input: { organizationId: orgId, startDate: orgStartDate, endDate: orgEndDate },
+        input: { organizationId: orgId, startDate: orgStartDate, endDate: orgEndDate, limit: 200 },
       },
       skip: !orgId || !isAdmin,
     });
@@ -170,9 +172,11 @@ const Attendance = () => {
   const [bulkMarkAttendance, { loading: bulkLoading }] = useMutation<{ bulkMarkAttendance: BulkMarkResult }>(BULK_MARK_ATTENDANCE);
 
   const orgAttendanceRows: AttendanceRow[] = useMemo(
-    () => orgAttendanceData?.attendanceByOrganization ?? [],
+    () => orgAttendanceData?.attendanceByOrganization?.items ?? [],
     [orgAttendanceData],
   );
+  const orgAttendanceTotal = orgAttendanceData?.attendanceByOrganization?.total ?? 0;
+  const orgAttendanceHasMore = orgAttendanceData?.attendanceByOrganization?.hasMore ?? false;
 
   // The bulk-mark list must be every active org member (from getAllUsers) —
   // not just the userIds that happen to already have an Attendance row in
@@ -396,6 +400,11 @@ const Attendance = () => {
                     ))}
                   </tbody>
                 </table>
+                {orgAttendanceHasMore && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Showing {orgAttendanceRows.length} of {orgAttendanceTotal} records — narrow the date range to see the rest.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
