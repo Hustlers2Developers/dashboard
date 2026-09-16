@@ -310,6 +310,72 @@ const Attendance = () => {
           </div>
         </div>
 
+        {/* Meeting Attendance — Jitsi rooms, tracked separately from daily attendance */}
+        <div className="premium-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Video className="h-4 w-4 text-primary" />
+              Meeting Attendance
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Same date range as Team Attendance below. Based on time spent in each meeting room.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {meetingAttendanceLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+              </div>
+            ) : meetingAttendanceError ? (
+              <div className="flex flex-col items-start gap-2 py-6">
+                <p className="text-sm text-destructive">Couldn't load meeting attendance. {meetingAttendanceError.message}</p>
+                <Button variant="outline" size="sm" onClick={() => void refetchMeetingAttendance()}>
+                  Retry
+                </Button>
+              </div>
+            ) : meetings.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                No meetings recorded in this date range.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {meetings.map((meeting) => (
+                  <div key={meeting.id} className="rounded-lg border border-border bg-background p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="font-medium text-foreground">{meeting.title}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(meeting.scheduledAt)}</p>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-500">
+                          <CheckCircle2 className="h-3 w-3" /> {meeting.attendedCount} attended
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 font-medium text-destructive">
+                          <XCircle className="h-3 w-3" /> {meeting.missedCount} missed
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {meeting.attendances.map((a) => (
+                        <span
+                          key={a.userId}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                            a.status === "ATTENDED"
+                              ? "bg-emerald-500/10 text-emerald-500"
+                              : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {a.userName || a.userEmail}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </div>
+
         {/* Org Attendance Table */}
         <div className="premium-card">
           <CardHeader>
@@ -485,72 +551,6 @@ const Attendance = () => {
                   Submit Bulk Attendance
                 </LoadingButton>
               </>
-            )}
-          </CardContent>
-        </div>
-
-        {/* Meeting Attendance — Jitsi rooms, tracked separately from daily attendance */}
-        <div className="premium-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Video className="h-4 w-4 text-primary" />
-              Meeting Attendance
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Same date range as Team Attendance above. Based on time spent in each meeting room.
-            </p>
-          </CardHeader>
-          <CardContent>
-            {meetingAttendanceLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
-              </div>
-            ) : meetingAttendanceError ? (
-              <div className="flex flex-col items-start gap-2 py-6">
-                <p className="text-sm text-destructive">Couldn't load meeting attendance. {meetingAttendanceError.message}</p>
-                <Button variant="outline" size="sm" onClick={() => void refetchMeetingAttendance()}>
-                  Retry
-                </Button>
-              </div>
-            ) : meetings.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                No meetings recorded in this date range.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {meetings.map((meeting) => (
-                  <div key={meeting.id} className="rounded-lg border border-border bg-background p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
-                      <div>
-                        <p className="font-medium text-foreground">{meeting.title}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(meeting.scheduledAt)}</p>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-500">
-                          <CheckCircle2 className="h-3 w-3" /> {meeting.attendedCount} attended
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 font-medium text-destructive">
-                          <XCircle className="h-3 w-3" /> {meeting.missedCount} missed
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {meeting.attendances.map((a) => (
-                        <span
-                          key={a.userId}
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                            a.status === "ATTENDED"
-                              ? "bg-emerald-500/10 text-emerald-500"
-                              : "bg-destructive/10 text-destructive"
-                          }`}
-                        >
-                          {a.userName || a.userEmail}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
           </CardContent>
         </div>

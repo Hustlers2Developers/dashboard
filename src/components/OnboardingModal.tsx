@@ -56,6 +56,10 @@ export const OnboardingModal = () => {
   const [role, setRole] = useState("");
   const [stack, setStack] = useState("");
   const [saving, setSaving] = useState(false);
+  // Gives the dashboard a beat to render first — popping this open the
+  // instant myProfile resolves (often before the page has even painted)
+  // felt like the screen was hijacked before the user saw anything.
+  const [readyToShow, setReadyToShow] = useState(false);
 
   const { data, loading } = useQuery<{ myProfile: ProfileData }>(MY_PROFILE, {
     fetchPolicy: "cache-first",
@@ -70,9 +74,14 @@ export const OnboardingModal = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setReadyToShow(true), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
   const profile = data?.myProfile;
   const needsOnboarding = !loading && !!profile && !profile.details?.title;
-  const open = needsOnboarding && !dismissedLocally;
+  const open = needsOnboarding && !dismissedLocally && readyToShow;
 
   const dismiss = () => {
     try {
