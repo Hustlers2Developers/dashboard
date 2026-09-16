@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import {
   GET_TEAMS_BY_ORG,
   CREATE_TEAM,
@@ -11,9 +12,10 @@ import {
   CREATE_TEAM_MEMBER,
   UPDATE_TEAM_MEMBER,
   DELETE_TEAM_MEMBER,
+  AUTO_ASSIGN_TEAMS,
 } from "@/graphql/mutations/teams";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
-import { Team, TeamMember } from "@/graphql/graphql";
+import { AutoAssignedTeamResult, Team, TeamMember } from "@/graphql/graphql";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,9 +59,23 @@ import {
   Mail,
   Pencil,
   UserPlus,
+  Wand2,
+  Code2,
+  Server,
+  Smartphone,
+  Database,
+  Layers,
 } from "lucide-react";
 
 type AppUser = { id: string; name?: string | null; email: string };
+
+const TECH_STACK_META: Record<string, { label: string; icon: typeof Code2 }> = {
+  FRONTEND: { label: "Frontend", icon: Code2 },
+  BACKEND: { label: "Backend", icon: Server },
+  MOBILE: { label: "Mobile", icon: Smartphone },
+  DATA: { label: "Data", icon: Database },
+  FULLSTACK: { label: "Fullstack", icon: Layers },
+};
 
 const TeamMembersList = ({
   teamId,
@@ -307,12 +323,14 @@ const Teams = () => {
   const user = useAuthStore((s) => s.user);
   const orgId = user?.orgId || "";
   const isSuperAdmin = user?.systemRole === "SUPER_ADMIN";
+  const { isOrgAdmin } = useIsOrgAdmin(orgId);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
   const [editTarget, setEditTarget] = useState<Team | null>(null);
   const [editName, setEditName] = useState("");
+  const [autoAssignConfirmOpen, setAutoAssignConfirmOpen] = useState(false);
 
   const { data, loading, refetch } = useQuery<
     { teamsByOrganization: Team[] },
@@ -341,6 +359,9 @@ const Teams = () => {
   const [createTeam, { loading: creating }] = useMutation(CREATE_TEAM);
   const [updateTeam, { loading: savingEdit }] = useMutation(UPDATE_TEAM);
   const [deleteTeam] = useMutation(DELETE_TEAM);
+  const [autoAssignTeams, { loading: autoAssigning }] = useMutation<{
+    autoAssignTeams: AutoAssignedTeamResult[];
+  }>(AUTO_ASSIGN_TEAMS);
 
   const teams = data?.teamsByOrganization || [];
 
@@ -399,6 +420,25 @@ const Teams = () => {
     }
   };
 
+  const handleAutoAssign = async () => {
+    try {
+      const result = await autoAssignTeams({ variables: { organizationId: orgId } });
+      const groups = result.data?.autoAssignTeams ?? [];
+      const totalAdded = groups.reduce((sum, g) => sum + g.addedCount, 0);
+      setAutoAssignConfirmOpen(false);
+      toast.success(
+        groups.length === 0
+          ? "No members have a tech stack set yet — ask them to set one in their profile."
+          : `Auto-assigned ${totalAdded} member${totalAdded === 1 ? "" : "s"} across ${groups.length} team${groups.length === 1 ? "" : "s"}.`,
+      );
+      await refetch();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to auto-assign teams";
+      toast.error(message);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -418,6 +458,15 @@ const Teams = () => {
                 <Mail className="mr-2 h-4 w-4" /> Invite Members
               </Link>
             </Button>
+            {isOrgAdmin && (
+              <Button
+                variant="outline"
+                onClick={() => setAutoAssignConfirmOpen(true)}
+                disabled={autoAssigning}
+              >
+                <Wand2 className="mr-2 h-4 w-4" /> Auto-assign by tech stack
+              </Button>
+            )}
             <Dialog open={isSuperAdmin && open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -488,9 +537,25 @@ const Teams = () => {
                       <Users className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-foreground">
-                        {team.name}
-                      </CardTitle>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CardTitle className="text-foreground">
+                          {team.name}
+                        </CardTitle>
+                        {team.isAutoAssigned && team.techStack && (
+                          <Badge variant="secondary" className="gap-1 text-xs">
+                            {(() => {
+                              const meta = TECH_STACK_META[team.techStack];
+                              const Icon = meta?.icon ?? Wand2;
+                              return (
+                                <>
+                                  <Icon className="h-3 w-3" />
+                                  {meta?.label ?? team.techStack}
+                                </>
+                              );
+                            })()}
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         Created{" "}
                         {new Date(parseInt(team.createdAt)).toLocaleDateString(
@@ -574,6 +639,26 @@ const Teams = () => {
               onClick={() => void handleDelete()}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={autoAssignConfirmOpen} onOpenChange={setAutoAssignConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Auto-assign teams by tech stack?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Creates (or reuses) one team per tech stack — Frontend, Backend, Mobile, Data, and
+              Fullstack — and adds every member who has set a primary tech stack in their profile
+              to the matching team. Members without a tech stack set are skipped. Existing manual
+              teams and memberships are left untouched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={autoAssigning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={autoAssigning} onClick={() => void handleAutoAssign()}>
+              {autoAssigning ? "Assigning..." : "Auto-assign"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

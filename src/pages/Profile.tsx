@@ -12,6 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   User,
@@ -27,9 +34,24 @@ import {
   Eye,
   EyeOff,
   Send,
+  Server,
+  Smartphone,
+  Database,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "";
+
+type TechStack = "FRONTEND" | "BACKEND" | "MOBILE" | "DATA" | "FULLSTACK";
+
+const TECH_STACK_OPTIONS: Array<{ value: TechStack; label: string; icon: typeof Code2 }> = [
+  { value: "FRONTEND", label: "Frontend", icon: Code2 },
+  { value: "BACKEND", label: "Backend", icon: Server },
+  { value: "MOBILE", label: "Mobile", icon: Smartphone },
+  { value: "DATA", label: "Data", icon: Database },
+  { value: "FULLSTACK", label: "Fullstack", icon: Layers },
+];
 
 type UserDetails = {
   phoneNumber?: string | null;
@@ -45,6 +67,7 @@ type UserDetails = {
   gfgUsername?: string | null;
   instagramUrl?: string | null;
   portfolioUrl?: string | null;
+  primaryTechStack?: TechStack | null;
   isPublic?: boolean;
 };
 
@@ -54,6 +77,8 @@ type ProfileData = {
   email: string;
   systemRole: string;
   createdAt: string;
+  telegramUserId?: string | null;
+  telegramUsername?: string | null;
   details?: UserDetails | null;
 };
 
@@ -112,13 +137,6 @@ const Profile = () => {
 
   const profile = data?.myProfile;
 
-  // The backend doesn't expose telegram link status on myProfile — only the
-  // link/unlink mutations return it — so we track it locally from whichever
-  // mutation last ran. Resets to "unknown" (null) on reload; the widget/
-  // unlink button below handle that as "not shown as linked" rather than
-  // asserting "definitely not linked".
-  type TelegramLinkState = { telegramUserId?: string | null; telegramUsername?: string | null } | null;
-  const [telegramLink, setTelegramLink] = useState<TelegramLinkState>(null);
   const [linkingTelegram, setLinkingTelegram] = useState(false);
   const [unlinkingTelegram, setUnlinkingTelegram] = useState(false);
 
@@ -136,6 +154,7 @@ const Profile = () => {
     instagramUrl: "",
     portfolioUrl: "",
     profilePicUrl: "",
+    primaryTechStack: "" as TechStack | "",
   });
 
   useEffect(() => {
@@ -154,6 +173,7 @@ const Profile = () => {
         instagramUrl: profile.details?.instagramUrl || "",
         portfolioUrl: profile.details?.portfolioUrl || "",
         profilePicUrl: profile.details?.profilePicUrl || "",
+        primaryTechStack: profile.details?.primaryTechStack || "",
       });
       setAvatarError(false);
     }
@@ -185,6 +205,7 @@ const Profile = () => {
             gfgUsername: form.gfgUsername || undefined,
             instagramUrl: form.instagramUrl || undefined,
             portfolioUrl: form.portfolioUrl || undefined,
+            primaryTechStack: form.primaryTechStack || undefined,
           },
         },
       });
@@ -217,9 +238,8 @@ const Profile = () => {
   const handleTelegramAuth = async (payload: TelegramAuthPayload) => {
     setLinkingTelegram(true);
     try {
-      const result = await linkTelegramAccount({ variables: { input: payload } });
-      const linked = result.data?.linkTelegramAccount;
-      setTelegramLink({ telegramUserId: linked?.telegramUserId, telegramUsername: linked?.telegramUsername });
+      await linkTelegramAccount({ variables: { input: payload } });
+      await refetch();
       toast.success("Telegram account linked. Your channel join requests will be auto-approved.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not link Telegram account.");
@@ -232,7 +252,7 @@ const Profile = () => {
     setUnlinkingTelegram(true);
     try {
       await unlinkTelegramAccount();
-      setTelegramLink({ telegramUserId: null, telegramUsername: null });
+      await refetch();
       toast.success("Telegram account unlinked.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not unlink Telegram account.");
@@ -340,13 +360,13 @@ const Profile = () => {
                   <div>
                     <p className="text-sm font-medium text-foreground">Telegram</p>
                     <p className="text-xs text-muted-foreground">
-                      {telegramLink?.telegramUserId
-                        ? `Linked as @${telegramLink.telegramUsername || telegramLink.telegramUserId}. Your join requests on the org channel are auto-approved.`
+                      {profile?.telegramUserId
+                        ? `Linked as @${profile.telegramUsername || profile.telegramUserId}. Your join requests on the org channel are auto-approved.`
                         : "Link your Telegram account so channel join requests are auto-approved."}
                     </p>
                   </div>
                 </div>
-                {telegramLink?.telegramUserId && (
+                {profile?.telegramUserId && (
                   <LoadingButton
                     variant="outline"
                     size="sm"
@@ -358,7 +378,7 @@ const Profile = () => {
                   </LoadingButton>
                 )}
               </CardContent>
-              {!telegramLink?.telegramUserId && (
+              {!profile?.telegramUserId && (
                 <CardContent className="pt-0">
                   {TELEGRAM_BOT_USERNAME ? (
                     <TelegramLoginWidget
@@ -460,6 +480,51 @@ const Profile = () => {
                     />
                   ) : (
                     <p className="text-sm text-foreground">{profile?.details?.bio || "—"}</p>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label><Sparkles className="mr-1 inline h-3.5 w-3.5" />Primary tech stack</Label>
+                  {editing ? (
+                    <>
+                      <Select
+                        value={form.primaryTechStack}
+                        onValueChange={(v) => setForm((prev) => ({ ...prev, primaryTechStack: v as TechStack }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your primary tech stack" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TECH_STACK_OPTIONS.map(({ value, label, icon: Icon }) => (
+                            <SelectItem key={value} value={value}>
+                              <span className="flex items-center gap-2">
+                                <Icon className="h-3.5 w-3.5" />
+                                {label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Used to auto-assign you to your org's tech-stack team. Your own choice — not
+                        derived from your GitHub activity.
+                      </p>
+                    </>
+                  ) : profile?.details?.primaryTechStack ? (
+                    (() => {
+                      const opt = TECH_STACK_OPTIONS.find((o) => o.value === profile.details?.primaryTechStack);
+                      const Icon = opt?.icon ?? Sparkles;
+                      return (
+                        <p className="flex items-center gap-1.5 text-sm text-foreground">
+                          <Icon className="h-3.5 w-3.5 text-primary" />
+                          {opt?.label ?? profile.details.primaryTechStack}
+                        </p>
+                      );
+                    })()
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Not set — click Edit to choose one.</p>
                   )}
                 </div>
 

@@ -36,6 +36,7 @@ import AcceptInvite from "./pages/AcceptInvite";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import GuestApplications from "./pages/GuestApplications";
+import SystemStatus from "./pages/SystemStatus";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -208,6 +209,14 @@ const App = () => (
               element={
                 <ProtectedRoute adminOnly>
                   <GuestApplications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/system-status"
+              element={
+                <ProtectedRoute adminOnly>
+                  <SystemStatus />
                 </ProtectedRoute>
               }
             />

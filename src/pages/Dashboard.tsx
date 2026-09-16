@@ -11,12 +11,17 @@ import {
   DAILY_QUOTE,
   ORG_MEMBERS_STREAKS,
 } from "@/graphql/mutations/attendance";
+import { MY_JOURNEY_PROGRESS } from "@/graphql/mutations/journey";
+import { GITHUB_CONTRIBUTIONS } from "@/graphql/mutations/github-contributions";
 import { getTodaysTip } from "@/lib/dev-tips";
+import { computeEngagementScore, engagementScoreBand } from "@/lib/engagement-score";
 import { Project, Team } from "@/graphql/graphql";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
 import {
   FolderKanban,
@@ -30,6 +35,8 @@ import {
   Quote,
   CalendarCheck,
   ArrowUpRight,
+  Sparkles,
+  GitCommitHorizontal,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
@@ -62,12 +69,28 @@ type WeeklyChallenge = {
 
 type DailyQuote = { text: string; author: string };
 
+// The Journey engine's raw progress payload shape isn't formally typed on
+// our side (it's cached as opaque JSON) — treat every field as possibly
+// absent rather than assuming the external service's exact contract.
+type JourneyProgressShape = {
+  totalXP?: number;
+  currentLevel?: number;
+  badges?: unknown[];
+};
+
 type MemberStreak = {
   userId: string;
   name: string;
   email: string;
   currentStreak: number;
   longestStreak: number;
+};
+
+type GithubContribution = {
+  githubUsername: string;
+  commits: number;
+  linkedUserId?: string | null;
+  linkedUserName?: string | null;
 };
 
 // createdAt timestamps come across as epoch-ms strings, but treat a
@@ -126,6 +149,12 @@ const Dashboard = () => {
     activeWeeklyChallenge: WeeklyChallenge;
   }>(ACTIVE_WEEKLY_CHALLENGE);
   const { data: quoteData } = useQuery<{ dailyQuote: DailyQuote }>(DAILY_QUOTE);
+  const { data: journeyData, loading: journeyLoading } = useQuery<{
+    journeyProgress: { progress: JourneyProgressShape; syncedAt: string; lastSyncError?: string | null } | null;
+  }>(MY_JOURNEY_PROGRESS, { variables: { userId: user?.sub }, skip: !user?.sub });
+  const { data: contributionsData, loading: contributionsLoading } = useQuery<{
+    githubContributions: GithubContribution[];
+  }>(GITHUB_CONTRIBUTIONS);
 
   // ── Org-wide streak snapshot (admins only) ──
   const { data: orgStreaksData, loading: orgStreaksLoading } = useQuery<{
@@ -145,9 +174,43 @@ const Dashboard = () => {
   const myRank = rankData?.myLeaderboardRank;
   const challenge = challengeData?.activeWeeklyChallenge;
   const quote = quoteData?.dailyQuote;
+  const journeyProgress = journeyData?.journeyProgress?.progress;
+  const totalXP = typeof journeyProgress?.totalXP === "number" ? journeyProgress.totalXP : null;
+  const currentLevel = typeof journeyProgress?.currentLevel === "number" ? journeyProgress.currentLevel : null;
   const topOrgStreaks = [...(orgStreaksData?.orgMembersStreaks ?? [])]
     .sort((a, b) => b.currentStreak - a.currentStreak)
     .slice(0, 5);
+
+  const engagementDataReady = !streakLoading && !attendanceSummaryLoading && !rankLoading && !challengeLoading;
+  const engagementScore = engagementDataReady
+    ? computeEngagementScore({
+        currentStreak: myStreak?.currentStreak ?? 0,
+        attendancePercentage: attendanceSummary?.attendancePercentage ?? 0,
+        weeklyChallengeProgress: challenge ? challenge.myProgress / challenge.targetDays : null,
+        rank: myRank?.rank,
+        totalParticipants: myRank?.totalParticipants,
+      })
+    : null;
+  const scoreBand = engagementScore !== null ? engagementScoreBand(engagementScore) : null;
+
+  const orgStreaksChartData = topOrgStreaks.map((member) => ({
+    name: (member.name || member.email).split(" ")[0],
+    streak: member.currentStreak,
+  }));
+  const orgStreaksChartConfig = {
+    streak: { label: "Current streak", color: "hsl(var(--primary))" },
+  };
+
+  const topContributors = [...(contributionsData?.githubContributions ?? [])]
+    .sort((a, b) => b.commits - a.commits)
+    .slice(0, 8);
+  const contributorsChartData = topContributors.map((c) => ({
+    name: (c.linkedUserName || c.githubUsername).split(" ")[0],
+    commits: c.commits,
+  }));
+  const contributorsChartConfig = {
+    commits: { label: "Commits", color: "hsl(var(--saffron))" },
+  };
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -301,6 +364,117 @@ const Dashboard = () => {
           </div>
         </section>
 
+        {/* ── Total XP — from the Journey engine's daily-synced snapshot ── */}
+        <section>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Your Journey XP</h3>
+          <Card className="premium-card border-0">
+            <CardContent className="p-6">
+              {journeyLoading ? (
+                <Skeleton className="h-16 w-full" />
+              ) : totalXP !== null ? (
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-baseline gap-2">
+                    <Trophy className="h-5 w-5 text-amber-500" />
+                    <span className="text-4xl font-bold text-foreground">{totalXP.toLocaleString()}</span>
+                    <span className="text-sm text-muted-foreground">total XP</span>
+                  </div>
+                  {currentLevel !== null && (
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                      Level {currentLevel}
+                    </span>
+                  )}
+                  <Link
+                    to="/journey"
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                  >
+                    View Journey <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No Journey XP synced yet.{" "}
+                  <Link to="/journey" className="text-accent hover:underline">
+                    Visit Journey
+                  </Link>{" "}
+                  to get started.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* ── Top contributors: GitHub commit counts, synced daily by org-contribution-analyzer ── */}
+        <section>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Top contributors</h3>
+          <Card className="premium-card border-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <GitCommitHorizontal className="h-4 w-4 text-saffron" />
+                Commits across GoDevelopers repositories
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {contributionsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+                </div>
+              ) : topContributors.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No contribution data synced yet.</p>
+              ) : (
+                <ChartContainer config={contributorsChartConfig} className="aspect-auto h-56 w-full">
+                  <BarChart data={contributorsChartData} layout="vertical" margin={{ left: 8 }}>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={72} />
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                    <Bar dataKey="commits" fill="var(--color-commits)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* ── Engagement score: a blended read of streak, attendance, challenge & rank ── */}
+        <section>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Your engagement score</h3>
+          <Card className="premium-card border-0">
+            <CardContent className="p-6">
+              {engagementScore === null ? (
+                <Skeleton className="h-16 w-full" />
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div className="flex items-baseline gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      <span className="text-4xl font-bold text-foreground">{engagementScore}</span>
+                      <span className="text-sm text-muted-foreground">/ 100</span>
+                    </div>
+                    {scoreBand && (
+                      <span className={`text-sm font-medium ${scoreBand.colorClass}`}>{scoreBand.label}</span>
+                    )}
+                  </div>
+                  <Progress value={engagementScore} className="h-2.5" />
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Flame className="h-3 w-3 text-orange-500" /> Streak
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <CalendarCheck className="h-3 w-3 text-emerald-500" /> Attendance
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Target className="h-3 w-3 text-primary" /> Weekly challenge
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Trophy className="h-3 w-3 text-amber-500" /> Org rank
+                    </span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
         {/* ── Org snapshot — admins only ── */}
         {isAdminView && (
           <section>
@@ -325,25 +499,42 @@ const Dashboard = () => {
                 ) : topOrgStreaks.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No streak data yet for this organization.</p>
                 ) : (
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                    {topOrgStreaks.map((member, idx) => (
-                      <div
-                        key={member.userId}
-                        className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                            {idx + 1}
+                  <>
+                    <ChartContainer config={orgStreaksChartConfig} className="mb-4 aspect-auto h-48 w-full">
+                      <BarChart data={orgStreaksChartData} layout="vertical" margin={{ left: 8 }}>
+                        <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tickLine={false}
+                          axisLine={false}
+                          width={72}
+                        />
+                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                        <Bar dataKey="streak" fill="var(--color-streak)" radius={4} />
+                      </BarChart>
+                    </ChartContainer>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                      {topOrgStreaks.map((member, idx) => (
+                        <div
+                          key={member.userId}
+                          className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                              {idx + 1}
+                            </span>
+                            <span className="truncate text-sm font-medium text-foreground">{member.name || member.email}</span>
+                          </div>
+                          <span className="flex shrink-0 items-center gap-1 text-sm text-foreground">
+                            <Flame className="h-3.5 w-3.5 text-orange-500" />
+                            {member.currentStreak}
                           </span>
-                          <span className="truncate text-sm font-medium text-foreground">{member.name || member.email}</span>
                         </div>
-                        <span className="flex shrink-0 items-center gap-1 text-sm text-foreground">
-                          <Flame className="h-3.5 w-3.5 text-orange-500" />
-                          {member.currentStreak}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

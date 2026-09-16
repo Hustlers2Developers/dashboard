@@ -94,6 +94,10 @@ export type Attendance = {
 
 export type AttendanceFilterInput = {
   endDate?: InputMaybe<Scalars['String']['input']>;
+  /** Max records to return. Default 50, server-capped at 200. */
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  /** Records to skip, for paging. Default 0. */
+  offset?: InputMaybe<Scalars['Int']['input']>;
   organizationId: Scalars['String']['input'];
   startDate?: InputMaybe<Scalars['String']['input']>;
   userId?: InputMaybe<Scalars['String']['input']>;
@@ -127,6 +131,14 @@ export type AuthUser = {
   orgRole?: Maybe<Scalars['String']['output']>;
   sub: Scalars['String']['output'];
   systemRole: SystemRole;
+};
+
+/** Result of auto-assigning one TechStack category's team. */
+export type AutoAssignedTeamResult = {
+  __typename?: 'AutoAssignedTeamResult';
+  /** Members newly added to this team by this run (0 if everyone eligible was already on it). */
+  addedCount: Scalars['Int']['output'];
+  team: Team;
 };
 
 export type BulkAttendanceResult = {
@@ -163,6 +175,14 @@ export type CreateInviteInput = {
 export type CreateInviteLinkResponse = {
   __typename?: 'CreateInviteLinkResponse';
   email: Scalars['String']['output'];
+  /**
+   * Whether the invite email actually sent (e.g. false if Resend rejected it
+   * due to bad/expired credentials). The invite record itself is always
+   * created regardless — use resendInviteLink to retry once credentials are
+   * fixed. Previously this failure was silent (logged only); this field
+   * surfaces it to the caller.
+   */
+  emailSent: Scalars['Boolean']['output'];
   expiresAt: Scalars['String']['output'];
   inviteId: Scalars['ID']['output'];
   inviteLink: Scalars['String']['output'];
@@ -252,6 +272,23 @@ export type Department = {
   updatedAt: Scalars['String']['output'];
 };
 
+/**
+ * One GitHub username's synced commit count from org-contribution-analyzer,
+ * optionally linked to a platform user (matched by UserDetails.githubUsername
+ * — null when this GitHub username has no linked platform account).
+ * Deliberately NOT a tech-stack signal — see the backend's schema comment on
+ * GithubContribution for why.
+ */
+export type GithubContributionEntry = {
+  __typename?: 'GithubContributionEntry';
+  commits: Scalars['Int']['output'];
+  githubUsername: Scalars['String']['output'];
+  /** The platform user this GitHub username belongs to, if any account has it set as their githubUsername. */
+  linkedUserId?: Maybe<Scalars['String']['output']>;
+  linkedUserName?: Maybe<Scalars['String']['output']>;
+  syncedAt: Scalars['String']['output'];
+};
+
 export type GuestApplication = {
   __typename?: 'GuestApplication';
   createdAt: Scalars['String']['output'];
@@ -263,6 +300,12 @@ export type GuestApplication = {
   phoneNumber?: Maybe<Scalars['String']['output']>;
   portfolioUrl?: Maybe<Scalars['String']['output']>;
   reason: Scalars['String']['output'];
+  /**
+   * Set when this application was submitted via an existing member's
+   * "Member referral" — the referring member's User.id. Null for
+   * applications from the plain public apply form.
+   */
+  referredByUserId?: Maybe<Scalars['String']['output']>;
   reviewedAt?: Maybe<Scalars['String']['output']>;
   reviewedBy?: Maybe<Scalars['String']['output']>;
   status: GuestApplicationStatus;
@@ -359,7 +402,7 @@ export type JourneyLeaderboardSnapshot = {
 };
 
 /**
- * Cached daily snapshot of a user's Journey engine (journey.godevelopers.online)
+ * Cached daily snapshot of a user's Journey engine (journey.godevelopers.space)
  * progress — synced once/day, not real-time. Check `syncedAt` before trusting freshness.
  */
 export type JourneyProgressSnapshot = {
@@ -401,6 +444,40 @@ export type MarkAttendanceInput = {
   organizationId: Scalars['String']['input'];
   status: AttendanceStatus;
   userId: Scalars['String']['input'];
+};
+
+export type MeetingAttendanceFilterInput = {
+  endDate?: InputMaybe<Scalars['String']['input']>;
+  organizationId: Scalars['String']['input'];
+  startDate?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** A single member's attendance record for one meeting. */
+export type MeetingAttendanceRecord = {
+  __typename?: 'MeetingAttendanceRecord';
+  status: MeetingAttendanceStatus;
+  userEmail: Scalars['String']['output'];
+  userId: Scalars['String']['output'];
+  userName: Scalars['String']['output'];
+};
+
+export enum MeetingAttendanceStatus {
+  Attended = 'ATTENDED',
+  Missed = 'MISSED'
+}
+
+/**
+ * A meeting (ad-hoc Jitsi room, one per room-per-day) with its per-user
+ * attendance, as recorded by the meeting-attendance ping endpoint.
+ */
+export type MeetingWithAttendance = {
+  __typename?: 'MeetingWithAttendance';
+  attendances: Array<MeetingAttendanceRecord>;
+  attendedCount: Scalars['Int']['output'];
+  id: Scalars['String']['output'];
+  missedCount: Scalars['Int']['output'];
+  scheduledAt: Scalars['String']['output'];
+  title: Scalars['String']['output'];
 };
 
 /** Streak info for a single org member, returned by orgMembersStreaks. */
@@ -453,6 +530,15 @@ export type Mutation = {
    * Requires org admin or super-admin.
    */
   assignUserToDepartment: UserDepartment;
+  /**
+   * Groups an org's active members into one team per TechStack category,
+   * based on each member's own (self-reported, never auto-detected)
+   * UserDetails.primaryTechStack. Members with no primaryTechStack set are
+   * skipped. Idempotent — safe to run repeatedly; reuses existing
+   * auto-assigned teams and only adds newly-eligible members, never removes
+   * anyone. Requires org admin or super-admin.
+   */
+  autoAssignTeams: Array<AutoAssignedTeamResult>;
   bulkMarkAttendance: BulkAttendanceResult;
   checkIn: Attendance;
   checkOut: Attendance;
@@ -479,6 +565,12 @@ export type Mutation = {
   deleteTask: Scalars['Boolean']['output'];
   deleteTeam: Scalars['Boolean']['output'];
   deleteTeamMember: Scalars['Boolean']['output'];
+  /**
+   * Links the authenticated user's Telegram account, verified via the
+   * Telegram Login Widget's signed payload. Once linked, this user's join
+   * requests on the gated Telegram channel are auto-approved.
+   */
+  linkTelegramAccount: TelegramLinkResult;
   login: AuthResponse;
   logout: Scalars['Boolean']['output'];
   markAttendance: Attendance;
@@ -546,10 +638,23 @@ export type Mutation = {
    */
   submitGuestApplicationFromApplyService: GuestApplication;
   /**
+   * Any logged-in member — refer someone by email+name (see the "Member
+   * referral" screen). Does NOT bypass admin review: creates a PENDING
+   * GuestApplication linked to the submitting member, same as the public
+   * apply form, only becoming an invite once an admin approves it via
+   * approveGuestApplication.
+   */
+  submitReferralApplication: GuestApplication;
+  /**
    * SUPER_ADMIN only — trigger a Journey engine sync immediately instead of
    * waiting for the daily 3 AM cron. Useful for testing or an on-demand refresh.
    */
   triggerJourneySync: JourneySyncResult;
+  /**
+   * Unlinks the authenticated user's Telegram account. Future join requests
+   * from that Telegram account will be declined until re-linked.
+   */
+  unlinkTelegramAccount: TelegramLinkResult;
   updateDepartment: Department;
   /**
    * Update a member's role within an organization.
@@ -600,6 +705,11 @@ export type MutationAssignTeamToProjectArgs = {
 
 export type MutationAssignUserToDepartmentArgs = {
   input: AssignUserDepartmentInput;
+};
+
+
+export type MutationAutoAssignTeamsArgs = {
+  organizationId: Scalars['String']['input'];
 };
 
 
@@ -713,6 +823,11 @@ export type MutationDeleteTeamMemberArgs = {
 };
 
 
+export type MutationLinkTelegramAccountArgs = {
+  input: TelegramLoginWidgetInput;
+};
+
+
 export type MutationLoginArgs = {
   input: LoginInput;
 };
@@ -786,6 +901,11 @@ export type MutationSubmitGuestApplicationArgs = {
 
 export type MutationSubmitGuestApplicationFromApplyServiceArgs = {
   input: SubmitGuestApplicationInput;
+};
+
+
+export type MutationSubmitReferralApplicationArgs = {
+  input: SubmitReferralApplicationInput;
 };
 
 
@@ -889,6 +1009,20 @@ export type PageInfo = {
   totalPages: Scalars['Int']['output'];
 };
 
+/**
+ * Paginated attendance results. When neither startDate nor endDate is
+ * provided, the query defaults to the last 7 days rather than returning
+ * full history — pass an explicit startDate to look further back.
+ */
+export type PaginatedAttendance = {
+  __typename?: 'PaginatedAttendance';
+  /** True if there are more records beyond this page (offset + items.length < total). */
+  hasMore: Scalars['Boolean']['output'];
+  items: Array<Attendance>;
+  /** Total records matching the filter (ignoring limit/offset) — use for building pagination UI. */
+  total: Scalars['Int']['output'];
+};
+
 export type PaginatedDepartments = {
   __typename?: 'PaginatedDepartments';
   data: Array<Department>;
@@ -990,7 +1124,7 @@ export type Query = {
   allTeams: Array<Team>;
   /** Platform-wide analytics overview. SUPER_ADMIN only. */
   analyticsOverview: AnalyticsOverview;
-  attendanceByOrganization: Array<Attendance>;
+  attendanceByOrganization: PaginatedAttendance;
   attendanceSummaryByUser?: Maybe<AttendanceSummary>;
   currentUser: AuthUser;
   /**
@@ -1017,6 +1151,12 @@ export type Query = {
    * Others: always uses their own org from the JWT token.
    */
   getUserById?: Maybe<User>;
+  /**
+   * Org-wide GitHub contribution leaderboard, most commits first. Synced
+   * daily from org-contribution-analyzer — this is a read of already-computed
+   * data, not a live GitHub API call.
+   */
+  githubContributions: Array<GithubContributionEntry>;
   /** Get a single guest application by ID. SUPER_ADMIN or org ADMIN. */
   guestApplication?: Maybe<GuestApplication>;
   /**
@@ -1044,6 +1184,13 @@ export type Query = {
    * Returns null if this user has never been synced yet.
    */
   journeyProgress?: Maybe<JourneyProgressSnapshot>;
+  /**
+   * Admin query: meetings held in an organization with per-user attendance,
+   * most-recent first. Optional date range filters by scheduledAt.
+   *
+   * **Auth:** Caller must be ADMIN of the org or SUPER_ADMIN.
+   */
+  meetingAttendanceByOrganization: Array<MeetingWithAttendance>;
   memberships: Array<Membership>;
   /**
    * Returns the authenticated user's activity log, ordered most-recent-first.
@@ -1053,7 +1200,12 @@ export type Query = {
    * **Auth:** Requires a valid JWT.
    */
   myActivities: Array<UserActivity>;
-  myAttendance: Array<Attendance>;
+  /**
+   * Defaults to the last 7 days when neither startDate nor endDate is
+   * given — pass startDate explicitly to look further back. Paginated;
+   * default limit 50, server-capped at 200.
+   */
+  myAttendance: PaginatedAttendance;
   myAttendanceSummary?: Maybe<AttendanceSummary>;
   /**
    * Returns the authenticated user's rank within the org leaderboard.
@@ -1234,6 +1386,11 @@ export type QueryJourneyProgressArgs = {
 };
 
 
+export type QueryMeetingAttendanceByOrganizationArgs = {
+  input: MeetingAttendanceFilterInput;
+};
+
+
 export type QueryMembershipsArgs = {
   organizationId?: InputMaybe<Scalars['String']['input']>;
   userId?: InputMaybe<Scalars['String']['input']>;
@@ -1247,6 +1404,8 @@ export type QueryMyActivitiesArgs = {
 
 export type QueryMyAttendanceArgs = {
   endDate?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
   startDate?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -1546,6 +1705,11 @@ export type SubmitGuestApplicationInput = {
   reason: Scalars['String']['input'];
 };
 
+export type SubmitReferralApplicationInput = {
+  email: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+};
+
 export enum SystemRole {
   SuperAdmin = 'SUPER_ADMIN',
   User = 'USER'
@@ -1579,9 +1743,13 @@ export type Team = {
   __typename?: 'Team';
   createdAt: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  /** True if this team was created by autoAssignTeams rather than manually. */
+  isAutoAssigned: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
   organizationId: Scalars['String']['output'];
   projectId?: Maybe<Scalars['String']['output']>;
+  /** Which TechStack category this team groups, if auto-assigned. Null for manually-created teams. */
+  techStack?: Maybe<TechStack>;
   updatedAt: Scalars['String']['output'];
 };
 
@@ -1599,6 +1767,43 @@ export enum TeamRole {
   Lead = 'LEAD',
   Member = 'MEMBER'
 }
+
+/**
+ * User-selected (never auto-detected) primary tech-stack. Set via
+ * updateProfile — purely the user's own choice, not derived from GitHub
+ * activity/commits (a user can contribute to repos outside their stated
+ * stack). Drives autoAssignTeams' grouping.
+ */
+export enum TechStack {
+  Backend = 'BACKEND',
+  Data = 'DATA',
+  Frontend = 'FRONTEND',
+  Fullstack = 'FULLSTACK',
+  Mobile = 'MOBILE'
+}
+
+export type TelegramLinkResult = {
+  __typename?: 'TelegramLinkResult';
+  id: Scalars['String']['output'];
+  telegramLinkedAt?: Maybe<Scalars['String']['output']>;
+  telegramUserId?: Maybe<Scalars['String']['output']>;
+  telegramUsername?: Maybe<Scalars['String']['output']>;
+};
+
+/**
+ * Raw payload from the Telegram Login Widget — forward it to this mutation
+ * exactly as Telegram's widget callback receives it, field names included.
+ * https://core.telegram.org/widgets/login#receiving-authorization-data
+ */
+export type TelegramLoginWidgetInput = {
+  auth_date: Scalars['Float']['input'];
+  first_name: Scalars['String']['input'];
+  hash: Scalars['String']['input'];
+  id: Scalars['Float']['input'];
+  last_name?: InputMaybe<Scalars['String']['input']>;
+  photo_url?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+};
 
 export type TopPage = {
   __typename?: 'TopPage';
@@ -1646,11 +1851,13 @@ export type UpdateProfileInput = {
   gfgUsername?: InputMaybe<Scalars['String']['input']>;
   githubUsername?: InputMaybe<Scalars['String']['input']>;
   instagramUrl?: InputMaybe<Scalars['String']['input']>;
+  isPublic?: InputMaybe<Scalars['Boolean']['input']>;
   leetcodeUsername?: InputMaybe<Scalars['String']['input']>;
   linkedInUrl?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   phoneNumber?: InputMaybe<Scalars['String']['input']>;
   portfolioUrl?: InputMaybe<Scalars['String']['input']>;
+  primaryTechStack?: InputMaybe<TechStack>;
   profilePicUrl?: InputMaybe<Scalars['String']['input']>;
   title?: InputMaybe<Scalars['String']['input']>;
 };
@@ -1699,6 +1906,13 @@ export type UpdateTeamMemberInput = {
 export type User = {
   __typename?: 'User';
   createdAt: Scalars['String']['output'];
+  /**
+   * Directory-facing profile details. When the user's UserDetails.isPublic is
+   * false, this still resolves (so name/email consumers aren't affected) but
+   * the directory fields inside it (avatar/title/bio/GitHub/LinkedIn etc.) are
+   * server-side nulled — never sent to the client for a private user.
+   */
+  details?: Maybe<UserDetails>;
   email: Scalars['String']['output'];
   hashedRefreshToken?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
@@ -1748,10 +1962,18 @@ export type UserDetails = {
   githubUsername?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   instagramUrl?: Maybe<Scalars['String']['output']>;
+  /**
+   * Whether this user's directory fields (above) are visible to other org
+   * members in getAllUsers/allPlatformUsers. Defaults true. Does not affect
+   * myProfile — a user always sees their own full details regardless.
+   */
+  isPublic: Scalars['Boolean']['output'];
   leetcodeUsername?: Maybe<Scalars['String']['output']>;
   linkedInUrl?: Maybe<Scalars['String']['output']>;
   phoneNumber?: Maybe<Scalars['String']['output']>;
   portfolioUrl?: Maybe<Scalars['String']['output']>;
+  /** User's own choice — see the TechStack enum doc comment. */
+  primaryTechStack?: Maybe<TechStack>;
   profilePicUrl?: Maybe<Scalars['String']['output']>;
   title?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['String']['output'];
@@ -1780,6 +2002,9 @@ export type UserProfile = {
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
   systemRole: SystemRole;
+  /** Telegram numeric user ID, set once the account is linked via linkTelegramAccount. Null if never linked. */
+  telegramUserId?: Maybe<Scalars['String']['output']>;
+  telegramUsername?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['String']['output'];
 };
 

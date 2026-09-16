@@ -76,6 +76,10 @@ type Attendance {
 
 input AttendanceFilterInput {
   endDate: String
+  """Max records to return. Default 50, server-capped at 200."""
+  limit: Int
+  """Records to skip, for paging. Default 0."""
+  offset: Int
   organizationId: String!
   startDate: String
   userId: String
@@ -106,6 +110,15 @@ type AuthUser {
   orgRole: String
   sub: String!
   systemRole: SystemRole!
+}
+
+"""Result of auto-assigning one TechStack category's team."""
+type AutoAssignedTeamResult {
+  """
+  Members newly added to this team by this run (0 if everyone eligible was already on it).
+  """
+  addedCount: Int!
+  team: Team!
 }
 
 type BulkAttendanceResult {
@@ -140,6 +153,14 @@ input CreateInviteInput {
 
 type CreateInviteLinkResponse {
   email: String!
+  """
+  Whether the invite email actually sent (e.g. false if Resend rejected it
+  due to bad/expired credentials). The invite record itself is always
+  created regardless — use resendInviteLink to retry once credentials are
+  fixed. Previously this failure was silent (logged only); this field
+  surfaces it to the caller.
+  """
+  emailSent: Boolean!
   expiresAt: String!
   inviteId: ID!
   inviteLink: String!
@@ -229,6 +250,24 @@ type Department {
   updatedAt: String!
 }
 
+"""
+One GitHub username's synced commit count from org-contribution-analyzer,
+optionally linked to a platform user (matched by UserDetails.githubUsername
+— null when this GitHub username has no linked platform account).
+Deliberately NOT a tech-stack signal — see the backend's schema comment on
+GithubContribution for why.
+"""
+type GithubContributionEntry {
+  commits: Int!
+  githubUsername: String!
+  """
+  The platform user this GitHub username belongs to, if any account has it set as their githubUsername.
+  """
+  linkedUserId: String
+  linkedUserName: String
+  syncedAt: String!
+}
+
 type GuestApplication {
   createdAt: String!
   email: String!
@@ -239,6 +278,12 @@ type GuestApplication {
   phoneNumber: String
   portfolioUrl: String
   reason: String!
+  """
+  Set when this application was submitted via an existing member's
+  "Member referral" — the referring member's User.id. Null for
+  applications from the plain public apply form.
+  """
+  referredByUserId: String
   reviewedAt: String
   reviewedBy: String
   status: GuestApplicationStatus!
@@ -335,7 +380,7 @@ type JourneyLeaderboardSnapshot {
 }
 
 """
-Cached daily snapshot of a user's Journey engine (journey.godevelopers.online)
+Cached daily snapshot of a user's Journey engine (journey.godevelopers.space)
 progress — synced once/day, not real-time. Check `syncedAt` before trusting freshness.
 """
 type JourneyProgressSnapshot {
@@ -378,6 +423,38 @@ input MarkAttendanceInput {
   organizationId: String!
   status: AttendanceStatus!
   userId: String!
+}
+
+input MeetingAttendanceFilterInput {
+  endDate: String
+  organizationId: String!
+  startDate: String
+}
+
+"""A single member's attendance record for one meeting."""
+type MeetingAttendanceRecord {
+  status: MeetingAttendanceStatus!
+  userEmail: String!
+  userId: String!
+  userName: String!
+}
+
+enum MeetingAttendanceStatus {
+  ATTENDED
+  MISSED
+}
+
+"""
+A meeting (ad-hoc Jitsi room, one per room-per-day) with its per-user
+attendance, as recorded by the meeting-attendance ping endpoint.
+"""
+type MeetingWithAttendance {
+  attendances: [MeetingAttendanceRecord!]!
+  attendedCount: Int!
+  id: String!
+  missedCount: Int!
+  scheduledAt: String!
+  title: String!
 }
 
 """Streak info for a single org member, returned by orgMembersStreaks."""
@@ -427,6 +504,15 @@ type Mutation {
   Requires org admin or super-admin.
   """
   assignUserToDepartment(input: AssignUserDepartmentInput!): UserDepartment!
+  """
+  Groups an org's active members into one team per TechStack category,
+  based on each member's own (self-reported, never auto-detected)
+  UserDetails.primaryTechStack. Members with no primaryTechStack set are
+  skipped. Idempotent — safe to run repeatedly; reuses existing
+  auto-assigned teams and only adds newly-eligible members, never removes
+  anyone. Requires org admin or super-admin.
+  """
+  autoAssignTeams(organizationId: String!): [AutoAssignedTeamResult!]!
   bulkMarkAttendance(input: BulkMarkAttendanceInput!): BulkAttendanceResult!
   checkIn(organizationId: String!): Attendance!
   checkOut: Attendance!
@@ -455,6 +541,12 @@ type Mutation {
   deleteTask(id: String!): Boolean!
   deleteTeam(id: String!): Boolean!
   deleteTeamMember(id: String!): Boolean!
+  """
+  Links the authenticated user's Telegram account, verified via the
+  Telegram Login Widget's signed payload. Once linked, this user's join
+  requests on the gated Telegram channel are auto-approved.
+  """
+  linkTelegramAccount(input: TelegramLoginWidgetInput!): TelegramLinkResult!
   login(input: LoginInput!): AuthResponse!
   logout: Boolean!
   markAttendance(input: MarkAttendanceInput!): Attendance!
@@ -524,10 +616,23 @@ type Mutation {
   """
   submitGuestApplicationFromApplyService(input: SubmitGuestApplicationInput!): GuestApplication!
   """
+  Any logged-in member — refer someone by email+name (see the "Member
+  referral" screen). Does NOT bypass admin review: creates a PENDING
+  GuestApplication linked to the submitting member, same as the public
+  apply form, only becoming an invite once an admin approves it via
+  approveGuestApplication.
+  """
+  submitReferralApplication(input: SubmitReferralApplicationInput!): GuestApplication!
+  """
   SUPER_ADMIN only — trigger a Journey engine sync immediately instead of
   waiting for the daily 3 AM cron. Useful for testing or an on-demand refresh.
   """
   triggerJourneySync: JourneySyncResult!
+  """
+  Unlinks the authenticated user's Telegram account. Future join requests
+  from that Telegram account will be declined until re-linked.
+  """
+  unlinkTelegramAccount: TelegramLinkResult!
   updateDepartment(id: String!, input: UpdateDepartmentInput!): Department!
   """
   Update a member's role within an organization.
@@ -575,6 +680,23 @@ type PageInfo {
   total: Int!
   """Total number of pages."""
   totalPages: Int!
+}
+
+"""
+Paginated attendance results. When neither startDate nor endDate is
+provided, the query defaults to the last 7 days rather than returning
+full history — pass an explicit startDate to look further back.
+"""
+type PaginatedAttendance {
+  """
+  True if there are more records beyond this page (offset + items.length < total).
+  """
+  hasMore: Boolean!
+  items: [Attendance!]!
+  """
+  Total records matching the filter (ignoring limit/offset) — use for building pagination UI.
+  """
+  total: Int!
 }
 
 type PaginatedDepartments {
@@ -668,7 +790,7 @@ type Query {
   allTeams: [Team!]!
   """Platform-wide analytics overview. SUPER_ADMIN only."""
   analyticsOverview(range: AnalyticsRange): AnalyticsOverview!
-  attendanceByOrganization(input: AttendanceFilterInput!): [Attendance!]!
+  attendanceByOrganization(input: AttendanceFilterInput!): PaginatedAttendance!
   attendanceSummaryByUser(userId: String!): AttendanceSummary
   currentUser: AuthUser!
   """
@@ -697,6 +819,12 @@ type Query {
   Others: always uses their own org from the JWT token.
   """
   getUserById(id: ID!, orgId: String): User
+  """
+  Org-wide GitHub contribution leaderboard, most commits first. Synced
+  daily from org-contribution-analyzer — this is a read of already-computed
+  data, not a live GitHub API call.
+  """
+  githubContributions: [GithubContributionEntry!]!
   """Get a single guest application by ID. SUPER_ADMIN or org ADMIN."""
   guestApplication(id: ID!): GuestApplication
   """
@@ -724,6 +852,13 @@ type Query {
   Returns null if this user has never been synced yet.
   """
   journeyProgress(userId: ID!): JourneyProgressSnapshot
+  """
+  Admin query: meetings held in an organization with per-user attendance,
+  most-recent first. Optional date range filters by scheduledAt.
+  
+  **Auth:** Caller must be ADMIN of the org or SUPER_ADMIN.
+  """
+  meetingAttendanceByOrganization(input: MeetingAttendanceFilterInput!): [MeetingWithAttendance!]!
   memberships(organizationId: String, userId: String): [Membership!]!
   """
   Returns the authenticated user's activity log, ordered most-recent-first.
@@ -733,7 +868,12 @@ type Query {
   **Auth:** Requires a valid JWT.
   """
   myActivities(limit: Int): [UserActivity!]!
-  myAttendance(endDate: String, startDate: String): [Attendance!]!
+  """
+  Defaults to the last 7 days when neither startDate nor endDate is
+  given — pass startDate explicitly to look further back. Paginated;
+  default limit 50, server-capped at 200.
+  """
+  myAttendance(endDate: String, limit: Int, offset: Int, startDate: String): PaginatedAttendance!
   myAttendanceSummary: AttendanceSummary
   """
   Returns the authenticated user's rank within the org leaderboard.
@@ -942,6 +1082,11 @@ input SubmitGuestApplicationInput {
   reason: String!
 }
 
+input SubmitReferralApplicationInput {
+  email: String!
+  name: String!
+}
+
 enum SystemRole {
   SUPER_ADMIN
   USER
@@ -973,9 +1118,15 @@ enum TaskStatus {
 type Team {
   createdAt: String!
   id: ID!
+  """True if this team was created by autoAssignTeams rather than manually."""
+  isAutoAssigned: Boolean!
   name: String!
   organizationId: String!
   projectId: String
+  """
+  Which TechStack category this team groups, if auto-assigned. Null for manually-created teams.
+  """
+  techStack: TechStack
   updatedAt: String!
 }
 
@@ -991,6 +1142,42 @@ type TeamMember {
 enum TeamRole {
   LEAD
   MEMBER
+}
+
+"""
+User-selected (never auto-detected) primary tech-stack. Set via
+updateProfile — purely the user's own choice, not derived from GitHub
+activity/commits (a user can contribute to repos outside their stated
+stack). Drives autoAssignTeams' grouping.
+"""
+enum TechStack {
+  BACKEND
+  DATA
+  FRONTEND
+  FULLSTACK
+  MOBILE
+}
+
+type TelegramLinkResult {
+  id: String!
+  telegramLinkedAt: String
+  telegramUserId: String
+  telegramUsername: String
+}
+
+"""
+Raw payload from the Telegram Login Widget — forward it to this mutation
+exactly as Telegram's widget callback receives it, field names included.
+https://core.telegram.org/widgets/login#receiving-authorization-data
+"""
+input TelegramLoginWidgetInput {
+  auth_date: Float!
+  first_name: String!
+  hash: String!
+  id: Float!
+  last_name: String
+  photo_url: String
+  username: String
 }
 
 type TopPage {
@@ -1037,11 +1224,13 @@ input UpdateProfileInput {
   gfgUsername: String
   githubUsername: String
   instagramUrl: String
+  isPublic: Boolean
   leetcodeUsername: String
   linkedInUrl: String
   name: String
   phoneNumber: String
   portfolioUrl: String
+  primaryTechStack: TechStack
   profilePicUrl: String
   title: String
 }
@@ -1089,6 +1278,13 @@ input UpdateTeamMemberInput {
 
 type User {
   createdAt: String!
+  """
+  Directory-facing profile details. When the user's UserDetails.isPublic is
+  false, this still resolves (so name/email consumers aren't affected) but
+  the directory fields inside it (avatar/title/bio/GitHub/LinkedIn etc.) are
+  server-side nulled — never sent to the client for a private user.
+  """
+  details: UserDetails
   email: String!
   hashedRefreshToken: String
   id: ID!
@@ -1137,10 +1333,18 @@ type UserDetails {
   githubUsername: String
   id: String!
   instagramUrl: String
+  """
+  Whether this user's directory fields (above) are visible to other org
+  members in getAllUsers/allPlatformUsers. Defaults true. Does not affect
+  myProfile — a user always sees their own full details regardless.
+  """
+  isPublic: Boolean!
   leetcodeUsername: String
   linkedInUrl: String
   phoneNumber: String
   portfolioUrl: String
+  """User's own choice — see the TechStack enum doc comment."""
+  primaryTechStack: TechStack
   profilePicUrl: String
   title: String
   updatedAt: String!
@@ -1167,6 +1371,11 @@ type UserProfile {
   id: ID!
   name: String!
   systemRole: SystemRole!
+  """
+  Telegram numeric user ID, set once the account is linked via linkTelegramAccount. Null if never linked.
+  """
+  telegramUserId: String
+  telegramUsername: String
   updatedAt: String!
 }
 

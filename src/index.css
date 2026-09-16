@@ -119,6 +119,23 @@
       -apple-system,
       sans-serif;
   }
+
+  /* Tailwind's preflight resets buttons/selects to cursor: default — restore
+     a pointer cursor on every clickable control app-wide instead of patching
+     className on each one. Disabled controls keep the not-allowed cursor. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a,
+  select,
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {

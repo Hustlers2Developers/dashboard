@@ -19,6 +19,7 @@ export const GET_ALL_USERS = gql`
         profilePicUrl
         githubUsername
         linkedInUrl
+        primaryTechStack
         isPublic
       }
     }
@@ -46,6 +47,8 @@ export const MY_PROFILE = gql`
       systemRole
       createdAt
       updatedAt
+      telegramUserId
+      telegramUsername
       details {
         phoneNumber
         bio
@@ -60,6 +63,7 @@ export const MY_PROFILE = gql`
         gfgUsername
         instagramUrl
         portfolioUrl
+        primaryTechStack
         isPublic
       }
     }
@@ -88,6 +92,7 @@ export const UPDATE_PROFILE = gql`
         gfgUsername
         instagramUrl
         portfolioUrl
+        primaryTechStack
         isPublic
       }
     }

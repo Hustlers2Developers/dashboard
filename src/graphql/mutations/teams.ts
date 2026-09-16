@@ -7,8 +7,28 @@ export const GET_TEAMS_BY_ORG = gql`
       name
       organizationId
       projectId
+      isAutoAssigned
+      techStack
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const AUTO_ASSIGN_TEAMS = gql`
+  mutation AutoAssignTeams($organizationId: String!) {
+    autoAssignTeams(organizationId: $organizationId) {
+      team {
+        id
+        name
+        organizationId
+        projectId
+        isAutoAssigned
+        techStack
+        createdAt
+        updatedAt
+      }
+      addedCount
     }
   }
 `;

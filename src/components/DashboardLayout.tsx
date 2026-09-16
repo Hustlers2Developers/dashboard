@@ -25,8 +25,10 @@ import {
   Users2,
   Compass,
   Flame,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +82,7 @@ const getNavItems = (userRole?: string, isOrgAdmin?: boolean) => {
           { to: "/organizations", label: "Organizations", icon: Shield },
           { to: "/services", label: "Services", icon: Server },
           { to: "/analytics", label: "Analytics", icon: BarChart3 },
+          { to: "/system-status", label: "System Status", icon: ShieldCheck },
         ]
       : []),
   ];
@@ -176,8 +179,16 @@ export const DashboardLayout = ({
         {/* User / Logout — shrink-0 so it always stays pinned to the
             bottom of the sidebar and is never squeezed out or clipped. */}
         <div className="shrink-0 border-t border-border p-4">
-          <div className="mb-3 truncate text-sm text-muted-foreground">
-            {user?.email}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="truncate text-sm text-muted-foreground">{user?.email}</span>
+            {user?.systemRole && (
+              <Badge
+                variant={user.systemRole === "SUPER_ADMIN" ? "default" : "secondary"}
+                className="shrink-0 text-[10px]"
+              >
+                {user.systemRole === "SUPER_ADMIN" ? "Super Admin" : "Member"}
+              </Badge>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -222,14 +233,7 @@ export const DashboardLayout = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="truncate text-sm font-medium">{user?.email ?? "Loading..."}</span>
-                      {user?.systemRole && (
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {user.systemRole === "SUPER_ADMIN" ? "Super Admin" : "Member"}
-                        </span>
-                      )}
-                    </div>
+                    <span className="truncate text-sm font-medium">{user?.email ?? "Loading..."}</span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
