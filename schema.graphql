@@ -624,6 +624,11 @@ type Mutation {
   """
   submitReferralApplication(input: SubmitReferralApplicationInput!): GuestApplication!
   """
+  Manually triggers the GithubContribution sync immediately, instead of
+  waiting for the daily 4:30 AM cron. Requires super-admin.
+  """
+  syncGithubContributions: SyncGithubContributionsResult!
+  """
   SUPER_ADMIN only — trigger a Journey engine sync immediately instead of
   waiting for the daily 3 AM cron. Useful for testing or an on-demand refresh.
   """
@@ -1085,6 +1090,14 @@ input SubmitGuestApplicationInput {
 input SubmitReferralApplicationInput {
   email: String!
   name: String!
+}
+
+"""Result of a manually-triggered GithubContribution sync."""
+type SyncGithubContributionsResult {
+  """
+  Number of GitHub usernames synced. 0 means the sync failed or the source file returned no entries — check server logs.
+  """
+  synced: Int!
 }
 
 enum SystemRole {

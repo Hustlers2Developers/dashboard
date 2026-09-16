@@ -27,6 +27,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -498,21 +503,66 @@ const Memberships = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-border">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
-                <ShieldCheck className="h-5 w-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Available roles</p>
-                <p className="text-2xl font-semibold text-foreground">{roles.length}</p>
-                <p className="text-xs text-muted-foreground">{inactiveMembersCount} inactive membership(s)</p>
-              </div>
-            </CardContent>
-          </Card>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Card className="cursor-pointer border-border transition-shadow hover:shadow-md">
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
+                    <ShieldCheck className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Available roles</p>
+                    <p className="text-2xl font-semibold text-foreground">{roles.length}</p>
+                    <p className="text-xs text-muted-foreground">{inactiveMembersCount} inactive membership(s)</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80">
+              <p className="mb-3 text-sm font-medium text-foreground">
+                Role catalog — {selectedOrganizationName}
+              </p>
+              {!selectedOrgId ? (
+                <p className="text-sm text-muted-foreground">
+                  Select an organization to load its role catalog.
+                </p>
+              ) : loadingRoles ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((item) => (
+                    <Skeleton key={item} className="h-12 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : roles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No roles were returned for this organization.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {roles.map((role) => (
+                    <div
+                      key={role.id}
+                      className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">{role.name}</p>
+                        {role.description && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">{role.description}</p>
+                        )}
+                      </div>
+                      {role.isSystemRole && (
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">
+                          System
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+        <div>
           <Card className="border-border">
             <CardHeader className="space-y-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -659,49 +709,6 @@ const Memberships = () => {
                   </TableBody>
                   </Table>
                 </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle>Role catalog</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Roles available in {selectedOrganizationName} for invites and member assignment.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {!selectedOrgId ? (
-                <p className="text-sm text-muted-foreground">
-                  Select an organization to load its role catalog.
-                </p>
-              ) : loadingRoles ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((item) => (
-                    <Skeleton key={item} className="h-20 w-full rounded-lg" />
-                  ))}
-                </div>
-              ) : roles.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-                  No roles were returned for this organization.
-                </div>
-              ) : (
-                roles.map((role) => (
-                  <div key={role.id} className="rounded-xl border border-border bg-background p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-foreground">{role.name}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {role.description || "No description provided for this role."}
-                        </p>
-                      </div>
-                      {role.isSystemRole ? <Badge variant="secondary">System</Badge> : null}
-                    </div>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Created {formatDate(role.createdAt)}
-                    </p>
-                  </div>
-                ))
               )}
             </CardContent>
           </Card>

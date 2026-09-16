@@ -646,6 +646,11 @@ export type Mutation = {
    */
   submitReferralApplication: GuestApplication;
   /**
+   * Manually triggers the GithubContribution sync immediately, instead of
+   * waiting for the daily 4:30 AM cron. Requires super-admin.
+   */
+  syncGithubContributions: SyncGithubContributionsResult;
+  /**
    * SUPER_ADMIN only — trigger a Journey engine sync immediately instead of
    * waiting for the daily 3 AM cron. Useful for testing or an on-demand refresh.
    */
@@ -1708,6 +1713,13 @@ export type SubmitGuestApplicationInput = {
 export type SubmitReferralApplicationInput = {
   email: Scalars['String']['input'];
   name: Scalars['String']['input'];
+};
+
+/** Result of a manually-triggered GithubContribution sync. */
+export type SyncGithubContributionsResult = {
+  __typename?: 'SyncGithubContributionsResult';
+  /** Number of GitHub usernames synced. 0 means the sync failed or the source file returned no entries — check server logs. */
+  synced: Scalars['Int']['output'];
 };
 
 export enum SystemRole {

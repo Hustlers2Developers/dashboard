@@ -1,4 +1,4 @@
-import { useQuery } from "@apollo/client/react";
+import { useMutation, useQuery } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import { GET_PROJECTS_BY_ORG } from "@/graphql/mutations/projects";
@@ -12,7 +12,7 @@ import {
   ORG_MEMBERS_STREAKS,
 } from "@/graphql/mutations/attendance";
 import { MY_JOURNEY_PROGRESS } from "@/graphql/mutations/journey";
-import { GITHUB_CONTRIBUTIONS } from "@/graphql/mutations/github-contributions";
+import { GITHUB_CONTRIBUTIONS, SYNC_GITHUB_CONTRIBUTIONS } from "@/graphql/mutations/github-contributions";
 import { getTodaysTip } from "@/lib/dev-tips";
 import { computeEngagementScore, engagementScoreBand } from "@/lib/engagement-score";
 import { Project, Team } from "@/graphql/graphql";
@@ -37,8 +37,10 @@ import {
   ArrowUpRight,
   Sparkles,
   GitCommitHorizontal,
+  RefreshCw,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { toast } from "sonner";
 
 type StreakInfo = {
   currentStreak: number;
@@ -109,6 +111,7 @@ const Dashboard = () => {
   const orgId = user?.orgId || "";
   const { isOrgAdmin } = useIsOrgAdmin(orgId);
   const isAdminView = isOrgAdmin; // covers SUPER_ADMIN too (see useIsOrgAdmin)
+  const isSuperAdmin = user?.systemRole === "SUPER_ADMIN";
 
   const {
     data: projectsData,
@@ -152,9 +155,14 @@ const Dashboard = () => {
   const { data: journeyData, loading: journeyLoading } = useQuery<{
     journeyProgress: { progress: JourneyProgressShape; syncedAt: string; lastSyncError?: string | null } | null;
   }>(MY_JOURNEY_PROGRESS, { variables: { userId: user?.sub }, skip: !user?.sub });
-  const { data: contributionsData, loading: contributionsLoading } = useQuery<{
-    githubContributions: GithubContribution[];
-  }>(GITHUB_CONTRIBUTIONS);
+  const {
+    data: contributionsData,
+    loading: contributionsLoading,
+    refetch: refetchContributions,
+  } = useQuery<{ githubContributions: GithubContribution[] }>(GITHUB_CONTRIBUTIONS);
+  const [syncGithubContributions, { loading: syncingContributions }] = useMutation<{
+    syncGithubContributions: { synced: number };
+  }>(SYNC_GITHUB_CONTRIBUTIONS);
 
   // ── Org-wide streak snapshot (admins only) ──
   const { data: orgStreaksData, loading: orgStreaksLoading } = useQuery<{
@@ -210,6 +218,21 @@ const Dashboard = () => {
   }));
   const contributorsChartConfig = {
     commits: { label: "Commits", color: "hsl(var(--saffron))" },
+  };
+
+  const handleSyncContributions = async () => {
+    try {
+      const result = await syncGithubContributions();
+      const synced = result.data?.syncGithubContributions.synced ?? 0;
+      toast.success(
+        synced === 0
+          ? "Sync ran but found no entries — check server logs."
+          : `Synced ${synced} GitHub username${synced === 1 ? "" : "s"}.`,
+      );
+      await refetchContributions();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sync GitHub contributions.");
+    }
   };
 
   const greeting = (() => {
@@ -407,11 +430,23 @@ const Dashboard = () => {
         <section>
           <h3 className="mb-3 text-sm font-semibold text-foreground">Top contributors</h3>
           <Card className="premium-card border-0">
-            <CardHeader className="pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <GitCommitHorizontal className="h-4 w-4 text-saffron" />
                 Commits across GoDevelopers repositories
               </CardTitle>
+              {isSuperAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void handleSyncContributions()}
+                  disabled={syncingContributions}
+                  className="h-7 gap-1.5 text-xs text-muted-foreground"
+                >
+                  <RefreshCw className={`h-3 w-3 ${syncingContributions ? "animate-spin" : ""}`} />
+                  {syncingContributions ? "Syncing..." : "Sync now"}
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {contributionsLoading ? (

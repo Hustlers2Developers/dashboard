@@ -11,3 +11,11 @@ export const GITHUB_CONTRIBUTIONS = gql`
     }
   }
 `;
+
+export const SYNC_GITHUB_CONTRIBUTIONS = gql`
+  mutation SyncGithubContributions {
+    syncGithubContributions {
+      synced
+    }
+  }
+`;
