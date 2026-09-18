@@ -246,7 +246,7 @@ export const DashboardLayout = ({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive cursor-pointer"
+                    className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
                     onClick={handleLogout}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
