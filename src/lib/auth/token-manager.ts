@@ -37,6 +37,20 @@ export function getAccessToken(): string | null {
   return _accessToken;
 }
 
+// Reads a non-expired gd_token cookie that was written into the page's
+// cookie jar before load — e.g. by the mobile app's webview, which shares an
+// already-logged-in session this way instead of a URL param. Only ever used
+// to *bootstrap* the in-memory token on startup; syncCookie() remains the
+// sole writer afterward.
+export function readCookieToken(): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]*)`));
+  const token = match ? decodeURIComponent(match[1]) : null;
+  if (!token) return null;
+  const exp = getJwtExp(token);
+  if (!exp || Date.now() / 1000 >= exp - 10) return null;
+  return token;
+}
+
 export function setAccessToken(token: string) {
   _accessToken = token;
   syncCookie(token);
