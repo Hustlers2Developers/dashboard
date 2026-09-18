@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/NotificationBell";
 
 // Admin/Super Admin manage the organization's structure and membership
 // pipeline — Departments, Positions, Organizations, Invites, Applications,
@@ -221,7 +222,8 @@ export const DashboardLayout = ({
 
           {/* User profile — right side */}
           {isAuthenticated && (
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-1">
+              <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2 px-2">

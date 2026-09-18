@@ -28,6 +28,7 @@ import Memberships from "./pages/Memberships";
 import Users from "./pages/Users";
 import Profile from "./pages/Profile";
 import Community from "./pages/Community";
+import CommunityPostDetail from "./pages/CommunityPostDetail";
 import Journey from "./pages/Journey";
 import Services from "./pages/Services";
 import Analytics from "./pages/Analytics";
@@ -173,6 +174,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Community />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/community/posts/:id"
+              element={
+                <ProtectedRoute>
+                  <CommunityPostDetail />
                 </ProtectedRoute>
               }
             />

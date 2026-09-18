@@ -212,13 +212,6 @@ const Dashboard = () => {
   const topContributors = [...(contributionsData?.githubContributions ?? [])]
     .sort((a, b) => b.commits - a.commits)
     .slice(0, 8);
-  const contributorsChartData = topContributors.map((c) => ({
-    name: (c.linkedUserName || c.githubUsername).split(" ")[0],
-    commits: c.commits,
-  }));
-  const contributorsChartConfig = {
-    commits: { label: "Commits", color: "hsl(var(--saffron))" },
-  };
 
   const handleSyncContributions = async () => {
     try {
@@ -451,20 +444,47 @@ const Dashboard = () => {
             <CardContent>
               {contributionsLoading ? (
                 <div className="space-y-2">
-                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
                 </div>
               ) : topContributors.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No contribution data synced yet.</p>
               ) : (
-                <ChartContainer config={contributorsChartConfig} className="aspect-auto h-56 w-full">
-                  <BarChart data={contributorsChartData} layout="vertical" margin={{ left: 8 }}>
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={72} />
-                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                    <Bar dataKey="commits" fill="var(--color-commits)" radius={4} />
-                  </BarChart>
-                </ChartContainer>
+                <div className="space-y-2">
+                  {topContributors.map((c, idx) => {
+                    const display = c.linkedUserName || c.githubUsername;
+                    const initials = display
+                      .split(/[\s@.]+/)
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((p) => p[0]?.toUpperCase())
+                      .join("");
+                    return (
+                      <div
+                        key={c.githubUsername}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                            {idx + 1}
+                          </span>
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">{display}</p>
+                            {c.linkedUserName && (
+                              <p className="truncate text-xs text-muted-foreground">@{c.githubUsername}</p>
+                            )}
+                          </div>
+                        </div>
+                        <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-foreground">
+                          <GitCommitHorizontal className="h-3.5 w-3.5 text-saffron" />
+                          {c.commits.toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -536,18 +556,20 @@ const Dashboard = () => {
                 ) : (
                   <>
                     <ChartContainer config={orgStreaksChartConfig} className="mb-4 aspect-auto h-48 w-full">
-                      <BarChart data={orgStreaksChartData} layout="vertical" margin={{ left: 8 }}>
-                        <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                        <YAxis
-                          type="category"
+                      <BarChart data={orgStreaksChartData} margin={{ top: 8, left: -20 }}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis
                           dataKey="name"
                           tickLine={false}
                           axisLine={false}
-                          width={72}
+                          tickMargin={8}
                         />
-                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                        <Bar dataKey="streak" fill="var(--color-streak)" radius={4} />
+                        <YAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+                        <ChartTooltip
+                          cursor={{ fill: "hsl(var(--muted))" }}
+                          content={<ChartTooltipContent hideLabel />}
+                        />
+                        <Bar dataKey="streak" fill="var(--color-streak)" radius={[4, 4, 0, 0]} maxBarSize={40} />
                       </BarChart>
                     </ChartContainer>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
