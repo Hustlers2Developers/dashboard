@@ -12,6 +12,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const hydrate = useAuthStore((s) => s.hydrate);
   const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
   const refresh = useAuthStore((s) => s.refresh);
+  const setTokens = useAuthStore((s) => s.setTokens);
+  const setSessionLoading = useAuthStore((s) => s.setSessionLoading);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hydratedRef = useRef(false);
 
@@ -21,9 +23,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // asynchronously; persist's rehydration does a full-state `set(..., true)`,
   // which could otherwise land after hydrate() and clobber isAuthenticated.
   // Waiting for persist first removes that race.
+  //
+  // The mobile app's webview can hand off an already-logged-in session by
+  // opening the dashboard with ?token=<accessToken> — when present, that
+  // token wins over the normal cookie-refresh flow and skips straight past
+  // the login screen. The param is stripped from the URL immediately so it
+  // never lingers in history or gets reprocessed on a later navigation.
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
+
+    const url = new URL(window.location.href);
+    const handoffToken = url.searchParams.get('token');
+    if (handoffToken) {
+      url.searchParams.delete('token');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      setTokens(handoffToken);
+      setSessionLoading(false);
+      return;
+    }
 
     if (useAuthStore.persist.hasHydrated()) {
       hydrate();
@@ -33,7 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         hydrate();
       });
     }
-  }, [hydrate]);
+  }, [hydrate, setTokens, setSessionLoading]);
 
   // Fetch user profile whenever auth becomes true
   useEffect(() => {
