@@ -15,11 +15,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hydratedRef = useRef(false);
 
-  // Hydrate once on mount
+  // Hydrate once on mount — but only after zustand/persist has finished
+  // restoring the persisted `user` from localStorage. Both persist's own
+  // rehydration and our silent-refresh hydrate() write to this store
+  // asynchronously; persist's rehydration does a full-state `set(..., true)`,
+  // which could otherwise land after hydrate() and clobber isAuthenticated.
+  // Waiting for persist first removes that race.
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
-    hydrate();
+
+    if (useAuthStore.persist.hasHydrated()) {
+      hydrate();
+    } else {
+      const unsub = useAuthStore.persist.onFinishHydration(() => {
+        unsub();
+        hydrate();
+      });
+    }
   }, [hydrate]);
 
   // Fetch user profile whenever auth becomes true

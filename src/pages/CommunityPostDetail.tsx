@@ -231,12 +231,25 @@ const CommunityPostDetail = () => {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-start justify-between gap-3">
-                    <h1 className="text-xl font-bold leading-tight tracking-tight text-foreground">{post.title}</h1>
+                  <h1 className="text-xl font-bold leading-tight tracking-tight text-foreground">{post.title}</h1>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
+                      <AuthorTag author={authorsById.get(post.authorId)} authorId={post.authorId} />
+                      <span aria-hidden className="text-muted-foreground/40">·</span>
+                      <span>
+                        {timeAgo(post.createdAt)}
+                        {post.updatedAt !== post.createdAt && " · edited"}
+                      </span>
+                    </div>
                     {(isPostAuthor || canDeletePost) && (
-                      <div className="flex shrink-0 gap-1">
+                      <div className="flex shrink-0 gap-0.5">
                         {isPostAuthor && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={startEditPost}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground/50 hover:bg-accent hover:text-foreground"
+                            onClick={startEditPost}
+                          >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -244,7 +257,7 @@ const CommunityPostDetail = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="h-7 w-7 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => setDeletePostOpen(true)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -252,14 +265,6 @@ const CommunityPostDetail = () => {
                         )}
                       </div>
                     )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
-                    <AuthorTag author={authorsById.get(post.authorId)} authorId={post.authorId} />
-                    <span aria-hidden className="text-muted-foreground/40">·</span>
-                    <span>
-                      {timeAgo(post.createdAt)}
-                      {post.updatedAt !== post.createdAt && " · edited"}
-                    </span>
                   </div>
                   <RichText text={post.content} className="text-[15px] leading-relaxed text-foreground" />
                 </>
@@ -294,7 +299,7 @@ const CommunityPostDetail = () => {
               return (
                 <Card
                   key={reply.id}
-                  className="animate-fade-slide-up border-border"
+                  className="group animate-fade-slide-up border-border"
                   style={{ animationDelay: `${Math.min(idx, 10) * 40}ms` }}
                 >
                   <CardContent className="space-y-2 p-4">
@@ -340,12 +345,12 @@ const CommunityPostDetail = () => {
                             <RichText text={reply.content} className="text-sm leading-relaxed text-foreground" />
                           </div>
                           {(isReplyAuthor || canDeleteReply) && (
-                            <div className="flex shrink-0 gap-0.5">
+                            <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                               {isReplyAuthor && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-6 w-6"
+                                  className="h-6 w-6 text-muted-foreground/50 hover:bg-accent hover:text-foreground"
                                   onClick={() => startEditReply(reply)}
                                 >
                                   <Pencil className="h-3 w-3" />
@@ -355,7 +360,7 @@ const CommunityPostDetail = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  className="h-6 w-6 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
                                   onClick={() => setDeleteReplyTarget(reply)}
                                 >
                                   <Trash2 className="h-3 w-3" />

@@ -262,21 +262,31 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
                 onClick={() => navigate(`/community/posts/${post.id}`)}
               >
                 <CardContent className="space-y-2.5 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="flex items-center gap-2 text-[15px] font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">
-                      {post.title}
-                      {showNewBadge && (
-                        <span className="inline-flex shrink-0 animate-pop-in items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-                          <Sparkles className="h-2.5 w-2.5" />
-                          New
-                        </span>
-                      )}
-                    </h3>
+                  <h3 className="flex items-center gap-2 text-[15px] font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">
+                    {post.title}
+                    {showNewBadge && (
+                      <span className="inline-flex shrink-0 animate-pop-in items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        New
+                      </span>
+                    )}
+                  </h3>
+                  <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{post.content}</p>
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-muted-foreground">
+                      <AuthorTag author={authorsById.get(post.authorId)} authorId={post.authorId} />
+                      <span aria-hidden className="text-muted-foreground/40">·</span>
+                      <span>{timeAgo(post.createdAt)}</span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        {post.replyCount} {post.replyCount === 1 ? "reply" : "replies"}
+                      </span>
+                    </div>
                     {canDelete && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 shrink-0 text-destructive opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                        className="h-6 w-6 shrink-0 text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeleteTarget(post);
@@ -285,16 +295,6 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                  </div>
-                  <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{post.content}</p>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs font-medium text-muted-foreground">
-                    <AuthorTag author={authorsById.get(post.authorId)} authorId={post.authorId} />
-                    <span aria-hidden className="text-muted-foreground/40">·</span>
-                    <span>{timeAgo(post.createdAt)}</span>
-                    <span className="flex items-center gap-1">
-                      <MessageSquare className="h-3 w-3" />
-                      {post.replyCount} {post.replyCount === 1 ? "reply" : "replies"}
-                    </span>
                   </div>
                 </CardContent>
               </Card>
