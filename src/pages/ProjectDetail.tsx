@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import {
   GET_PROJECT,
   GET_TASKS_BY_PROJECT,
+  GET_PROJECT_CONTRIBUTORS,
   CREATE_TASK,
   UPDATE_TASK,
   DELETE_TASK,
@@ -15,7 +16,8 @@ import {
 } from "@/graphql/mutations/projects";
 import { GET_TEAMS_BY_PROJECT } from "@/graphql/mutations/teams";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
-import { Task } from "@/graphql/graphql";
+import { Task, ProjectContributor } from "@/graphql/graphql";
+import { initials, colorFor } from "@/components/AuthorTag";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, ListTodo, Github, UserPlus, Pencil, Users } from "lucide-react";
+import { Plus, Trash2, ListTodo, Github, GitPullRequest, UserPlus, Pencil, Users } from "lucide-react";
 
 const STATUS_COLUMNS = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"] as const;
 const STATUS_LABELS: Record<string, string> = {
@@ -107,11 +109,16 @@ const ProjectDetail = () => {
   const [addMemberUserId, setAddMemberUserId] = useState("");
   const [addMemberRole, setAddMemberRole] = useState<"MANAGER" | "CONTRIBUTOR" | "VIEWER">("CONTRIBUTOR");
 
-  const { data: projectData } = useQuery<{ project: { id: string; name: string; description?: string | null } | null }>(
-    GET_PROJECT,
-    { variables: { id: projectId }, skip: !projectId },
-  );
+  const { data: projectData } = useQuery<{
+    project: { id: string; name: string; description?: string | null; githubRepoUrl?: string | null } | null;
+  }>(GET_PROJECT, { variables: { id: projectId }, skip: !projectId });
   const project = projectData?.project;
+
+  const { data: contributorsData } = useQuery<{ projectContributors: ProjectContributor[] }>(
+    GET_PROJECT_CONTRIBUTORS,
+    { variables: { projectId }, skip: !projectId || !project?.githubRepoUrl },
+  );
+  const contributors = contributorsData?.projectContributors ?? [];
 
   const { data, loading, refetch } = useQuery<
     { tasksByProject: Task[] },
@@ -325,6 +332,47 @@ const ProjectDetail = () => {
             <p className="text-muted-foreground">
               {project?.description || "Kanban view of your project tasks"}
             </p>
+            {project?.githubRepoUrl && (
+              <a
+                href={project.githubRepoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+              >
+                <Github className="h-3.5 w-3.5" />
+                {project.githubRepoUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, "")}
+              </a>
+            )}
+            {contributors.length > 0 && (
+              <div className="mt-2 flex items-center">
+                {contributors.slice(0, 8).map((c, idx) => (
+                  <a
+                    key={c.username}
+                    href={c.profileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`${c.username} · ${c.contributions} contributions`}
+                    className="-ml-2 first:ml-0 transition-transform hover:z-10 hover:-translate-y-0.5"
+                    style={{ zIndex: 8 - idx }}
+                  >
+                    {c.avatarUrl ? (
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.username}
+                        referrerPolicy="no-referrer"
+                        className="h-7 w-7 rounded-full border-2 border-background object-cover"
+                      />
+                    ) : (
+                      <span
+                        className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-background text-[10px] font-semibold ${colorFor(c.username)}`}
+                      >
+                        {initials(c.username)}
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Dialog open={membersOpen} onOpenChange={setMembersOpen}>
@@ -587,6 +635,9 @@ const ProjectDetail = () => {
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between">
                                 <h4 className="text-sm font-medium text-foreground">
+                                  <span className="mr-1.5 text-muted-foreground/70">
+                                    TASK-{task.shortNumber}
+                                  </span>
                                   {task.title}
                                 </h4>
                                 {canManageTasks && (
@@ -639,6 +690,17 @@ const ProjectDetail = () => {
                                   <Github className="h-3 w-3" />
                                   {task.githubRepo}
                                   {task.githubBranch ? `@${task.githubBranch}` : ""}
+                                </a>
+                              )}
+                              {task.githubPrUrl && (
+                                <a
+                                  href={task.githubPrUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20"
+                                >
+                                  <GitPullRequest className="h-3 w-3" />
+                                  View PR
                                 </a>
                               )}
                               <div className="mt-3">

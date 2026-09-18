@@ -7,6 +7,7 @@ export const GET_PROJECT = gql`
       name
       description
       organizationId
+      githubRepoUrl
       createdAt
       updatedAt
     }
@@ -20,6 +21,7 @@ export const GET_PROJECTS_BY_ORG = gql`
       name
       description
       organizationId
+      githubRepoUrl
       createdAt
       updatedAt
     }
@@ -33,7 +35,20 @@ export const CREATE_PROJECT = gql`
       name
       description
       organizationId
+      githubRepoUrl
       createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_PROJECT = gql`
+  mutation UpdateProject($id: String!, $input: UpdateProjectInput!) {
+    updateProject(id: $id, input: $input) {
+      id
+      name
+      description
+      githubRepoUrl
       updatedAt
     }
   }
@@ -45,16 +60,29 @@ export const DELETE_PROJECT = gql`
   }
 `;
 
+export const GET_PROJECT_CONTRIBUTORS = gql`
+  query GetProjectContributors($projectId: String!) {
+    projectContributors(projectId: $projectId) {
+      username
+      avatarUrl
+      profileUrl
+      contributions
+    }
+  }
+`;
+
 export const GET_TASKS_BY_PROJECT = gql`
   query GetTasksByProject($projectId: String!) {
     tasksByProject(projectId: $projectId) {
       id
+      shortNumber
       title
       description
       status
       githubRepo
       githubBranch
       githubIssueUrl
+      githubPrUrl
       assignedUserId
       assignedTeamId
       createdAt
@@ -67,6 +95,7 @@ export const CREATE_TASK = gql`
   mutation CreateTask($input: CreateTaskInput!) {
     createTask(input: $input) {
       id
+      shortNumber
       title
       description
       projectId
@@ -74,6 +103,7 @@ export const CREATE_TASK = gql`
       githubRepo
       githubBranch
       githubIssueUrl
+      githubPrUrl
       assignedUserId
       assignedTeamId
       createdBy
@@ -86,12 +116,14 @@ export const UPDATE_TASK = gql`
   mutation UpdateTask($id: String!, $input: UpdateTaskInput!) {
     updateTask(id: $id, input: $input) {
       id
+      shortNumber
       title
       description
       status
       githubRepo
       githubBranch
       githubIssueUrl
+      githubPrUrl
       assignedUserId
       assignedTeamId
       updatedAt

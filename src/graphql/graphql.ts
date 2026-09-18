@@ -208,6 +208,7 @@ export type CreatePositionInput = {
 
 export type CreateProjectInput = {
   description?: InputMaybe<Scalars['String']['input']>;
+  githubRepoUrl?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   organizationId: Scalars['String']['input'];
 };
@@ -238,6 +239,7 @@ export type CreateTaskInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   githubBranch?: InputMaybe<Scalars['String']['input']>;
   githubIssueUrl?: InputMaybe<Scalars['String']['input']>;
+  githubPrUrl?: InputMaybe<Scalars['String']['input']>;
   githubRepo?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['String']['input'];
   status?: InputMaybe<TaskStatus>;
@@ -1085,10 +1087,19 @@ export type Project = {
   __typename?: 'Project';
   createdAt: Scalars['String']['output'];
   description?: Maybe<Scalars['String']['output']>;
+  githubRepoUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
   organizationId: Scalars['String']['output'];
   updatedAt: Scalars['String']['output'];
+};
+
+export type ProjectContributor = {
+  __typename?: 'ProjectContributor';
+  avatarUrl?: Maybe<Scalars['String']['output']>;
+  contributions: Scalars['Int']['output'];
+  profileUrl: Scalars['String']['output'];
+  username: Scalars['String']['output'];
 };
 
 export type ProjectMember = {
@@ -1248,6 +1259,8 @@ export type Query = {
   positionsByDepartment: Array<Position>;
   positionsByOrganization: Array<Position>;
   project?: Maybe<Project>;
+  /** Live-fetched GitHub contributors for a project's linked repo. Empty if no repo is set or it can't be reached. */
+  projectContributors: Array<ProjectContributor>;
   /** List all members of a project. Requires org membership. */
   projectMembers: Array<ProjectMember>;
   /** List all projects a user is a direct member of within an organization. */
@@ -1736,9 +1749,11 @@ export type Task = {
   description?: Maybe<Scalars['String']['output']>;
   githubBranch?: Maybe<Scalars['String']['output']>;
   githubIssueUrl?: Maybe<Scalars['String']['output']>;
+  githubPrUrl?: Maybe<Scalars['String']['output']>;
   githubRepo?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   projectId: Scalars['String']['output'];
+  shortNumber: Scalars['Int']['output'];
   status: TaskStatus;
   title: Scalars['String']['output'];
   updatedAt: Scalars['String']['output'];
@@ -1876,6 +1891,7 @@ export type UpdateProfileInput = {
 
 export type UpdateProjectInput = {
   description?: InputMaybe<Scalars['String']['input']>;
+  githubRepoUrl?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -1901,6 +1917,7 @@ export type UpdateTaskInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   githubBranch?: InputMaybe<Scalars['String']['input']>;
   githubIssueUrl?: InputMaybe<Scalars['String']['input']>;
+  githubPrUrl?: InputMaybe<Scalars['String']['input']>;
   githubRepo?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<TaskStatus>;
   title?: InputMaybe<Scalars['String']['input']>;

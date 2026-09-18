@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/LoadingButton";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
@@ -38,23 +37,13 @@ type ProfileData = {
  * One-time "welcome" prompt shown the first time a user reaches the
  * dashboard without a preferred role set yet.
  *
- * Preferred role is saved for real via updateProfile → UserDetails.title
- * (an existing, persisted field — safe to reuse since it's a free-text
+ * Preferred role is saved via updateProfile → UserDetails.title (an
+ * existing, persisted field — safe to reuse since it's a free-text
  * "role/title" slot the schema already exposes).
- *
- * Tech stack / tools is NOT persisted anywhere yet — UserDetails has no
- * dedicated field for it, and stuffing structured data into an unrelated
- * field (e.g. bio) would corrupt it. This step is shown for the product
- * requirement, but intentionally does not save until the backend adds a
- * real field (e.g. UserDetails.techStack). See TECH_STACK_TODO below.
  */
-export const TECH_STACK_TODO =
-  "UserDetails has no techStack/tools field yet — add one on the backend, then wire it here.";
-
 export const OnboardingModal = () => {
   const [dismissedLocally, setDismissedLocally] = useState(true);
   const [role, setRole] = useState("");
-  const [stack, setStack] = useState("");
   const [saving, setSaving] = useState(false);
   // Gives the dashboard a beat to render first — popping this open the
   // instant myProfile resolves (often before the page has even painted)
@@ -100,14 +89,9 @@ export const OnboardingModal = () => {
     }
     setSaving(true);
     try {
-      // Only `title` (preferred role) is actually persisted right now — see
-      // TECH_STACK_TODO. `stack` is intentionally not sent to the backend.
       await updateProfile({
         variables: { input: { title: role.trim() } },
       });
-      if (stack.trim()) {
-        console.warn(`Tech stack not saved (${TECH_STACK_TODO})`, stack.trim());
-      }
       toast.success("Thanks! Your profile is set up.");
       dismiss();
     } catch (err) {
@@ -149,21 +133,6 @@ export const OnboardingModal = () => {
                 </button>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>
-              Current tech stack / tools <span className="text-muted-foreground">(coming soon)</span>
-            </Label>
-            <Input
-              value={stack}
-              onChange={(e) => setStack(e.target.value)}
-              placeholder="e.g. React, Node.js, PostgreSQL, Docker"
-              disabled
-            />
-            <p className="text-xs text-muted-foreground">
-              We're adding a dedicated field for this — it isn't saved yet.
-            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

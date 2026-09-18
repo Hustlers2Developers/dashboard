@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import {
   GET_PROJECTS_BY_ORG,
   CREATE_PROJECT,
+  UPDATE_PROJECT,
   DELETE_PROJECT,
 } from "@/graphql/mutations/projects";
 import { Project } from "@/graphql/graphql";
@@ -33,7 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, FolderKanban } from "lucide-react";
+import { Plus, Trash2, FolderKanban, Github, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Projects = () => {
@@ -42,6 +43,11 @@ const Projects = () => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [githubRepoUrl, setGithubRepoUrl] = useState("");
+  const [editTarget, setEditTarget] = useState<Project | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editGithubRepoUrl, setEditGithubRepoUrl] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   const { data, loading, refetch } = useQuery<
@@ -56,6 +62,7 @@ const Projects = () => {
   const isRefetching = loading && !!data;
 
   const [createProject, { loading: creating }] = useMutation(CREATE_PROJECT);
+  const [updateProject, { loading: updating }] = useMutation(UPDATE_PROJECT);
   const [deleteProject] = useMutation(DELETE_PROJECT);
 
   const projects = data?.projectsByOrganization || [];
@@ -65,16 +72,55 @@ const Projects = () => {
     if (!name.trim()) return;
     try {
       await createProject({
-        variables: { input: { name, description, organizationId: orgId } },
+        variables: {
+          input: {
+            name,
+            description,
+            organizationId: orgId,
+            githubRepoUrl: githubRepoUrl.trim() || undefined,
+          },
+        },
       });
       toast.success("Project created!");
       setName("");
       setDescription("");
+      setGithubRepoUrl("");
       setOpen(false);
       refetch();
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to create project";
+      toast.error(message);
+    }
+  };
+
+  const openEdit = (project: Project) => {
+    setEditTarget(project);
+    setEditName(project.name);
+    setEditDescription(project.description || "");
+    setEditGithubRepoUrl(project.githubRepoUrl || "");
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget || !editName.trim()) return;
+    try {
+      await updateProject({
+        variables: {
+          id: editTarget.id,
+          input: {
+            name: editName,
+            description: editDescription,
+            githubRepoUrl: editGithubRepoUrl.trim() || null,
+          },
+        },
+      });
+      toast.success("Project updated");
+      setEditTarget(null);
+      refetch();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update project";
       toast.error(message);
     }
   };
@@ -131,6 +177,14 @@ const Projects = () => {
                     placeholder="Brief description..."
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>GitHub repo URL (optional)</Label>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/org/repo"
+                  />
+                </div>
                 <LoadingButton
                   type="submit"
                   className="w-full gold-gradient text-primary-foreground"
@@ -181,16 +235,26 @@ const Projects = () => {
                       {project.description || "No description"}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteTarget(project)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground/50 hover:bg-accent hover:text-foreground"
+                      onClick={() => openEdit(project)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setDeleteTarget(project)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-2">
                   <span className="text-xs text-muted-foreground">
                     Created{" "}
                     {new Date(parseInt(project.createdAt)).toLocaleDateString(
@@ -198,6 +262,20 @@ const Projects = () => {
                       { year: "numeric", month: "short", day: "numeric" },
                     )}
                   </span>
+                  {project.githubRepoUrl && (
+                    <a
+                      href={project.githubRepoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+                    >
+                      <Github className="h-3.5 w-3.5" />
+                      <span className="truncate">
+                        {project.githubRepoUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, "")}
+                      </span>
+                    </a>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -205,6 +283,48 @@ const Projects = () => {
           </RefetchOverlay>
         )}
       </div>
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Project Name</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. Mobile App v2"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description (optional)</Label>
+              <Input
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Brief description..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>GitHub repo URL (optional)</Label>
+              <Input
+                value={editGithubRepoUrl}
+                onChange={(e) => setEditGithubRepoUrl(e.target.value)}
+                placeholder="https://github.com/org/repo"
+              />
+            </div>
+            <LoadingButton
+              type="submit"
+              className="w-full gold-gradient text-primary-foreground"
+              loading={updating}
+              loadingText="Saving..."
+            >
+              Save Changes
+            </LoadingButton>
+          </form>
+        </DialogContent>
+      </Dialog>
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
