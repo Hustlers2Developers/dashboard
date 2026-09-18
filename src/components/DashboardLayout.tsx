@@ -26,6 +26,7 @@ import {
   Compass,
   Flame,
   ShieldCheck,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +77,7 @@ const getNavItems = (userRole?: string, isOrgAdmin?: boolean) => {
     ...(!isSuperAdmin ? [{ to: "/streak", label: "Streak", icon: Flame }] : []),
     { to: "/journey", label: "Journey", icon: Compass },
     { to: "/community", label: "Community", icon: Users2 },
+    { to: "/referral", label: "Referral", icon: UserPlus },
     { to: "/profile", label: "My Profile", icon: UserCircle },
     ...(isSuperAdmin
       ? [

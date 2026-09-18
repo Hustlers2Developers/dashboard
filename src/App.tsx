@@ -29,6 +29,7 @@ import Users from "./pages/Users";
 import Profile from "./pages/Profile";
 import Community from "./pages/Community";
 import CommunityPostDetail from "./pages/CommunityPostDetail";
+import ReferMember from "./pages/ReferMember";
 import Journey from "./pages/Journey";
 import Services from "./pages/Services";
 import Analytics from "./pages/Analytics";
@@ -182,6 +183,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CommunityPostDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/referral"
+              element={
+                <ProtectedRoute>
+                  <ReferMember />
                 </ProtectedRoute>
               }
             />
