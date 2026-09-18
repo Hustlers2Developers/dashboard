@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -12,6 +12,8 @@ import {
   UPDATE_COMMUNITY_POST,
   DELETE_COMMUNITY_POST,
 } from "@/graphql/mutations/community";
+import { GET_ALL_USERS } from "@/graphql/mutations/users";
+import { AuthorTag, CommunityUser } from "@/components/AuthorTag";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, MessageSquare, Pencil, Trash2, X, Check } from "lucide-react";
 import { timeAgo } from "@/lib/time-ago";
+import { RichText } from "@/components/RichText";
 
 type CommunityPost = {
   id: string;
@@ -72,6 +75,19 @@ const CommunityPostDetail = () => {
     variables: { postId: id, pagination: { page: 1, limit: 100 } },
     skip: !id,
   });
+
+  // Resolve authorId -> member display info from the org directory, same as
+  // the Posts feed — the backend doesn't join author name onto posts/replies.
+  const { data: membersData } = useQuery<{ getAllUsers: CommunityUser[] }>(GET_ALL_USERS, {
+    variables: { orgId },
+    skip: !orgId,
+    fetchPolicy: "cache-first",
+  });
+  const authorsById = useMemo(() => {
+    const map = new Map<string, CommunityUser>();
+    for (const m of membersData?.getAllUsers ?? []) map.set(m.id, m);
+    return map;
+  }, [membersData]);
 
   const [replyContent, setReplyContent] = useState("");
   const [createReply, { loading: submittingReply }] = useMutation(CREATE_COMMUNITY_REPLY);
@@ -237,11 +253,15 @@ const CommunityPostDetail = () => {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Posted {timeAgo(post.createdAt)}
-                    {post.updatedAt !== post.createdAt && " · edited"}
-                  </p>
-                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">{post.content}</p>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
+                    <AuthorTag author={authorsById.get(post.authorId)} authorId={post.authorId} />
+                    <span aria-hidden className="text-muted-foreground/40">·</span>
+                    <span>
+                      {timeAgo(post.createdAt)}
+                      {post.updatedAt !== post.createdAt && " · edited"}
+                    </span>
+                  </div>
+                  <RichText text={post.content} className="text-[15px] leading-relaxed text-foreground" />
                 </>
               )}
             </CardContent>
@@ -261,6 +281,12 @@ const CommunityPostDetail = () => {
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
+          ) : replies.length === 0 ? (
+            <Card className="border-dashed border-border bg-transparent">
+              <CardContent className="p-5 text-center text-sm text-muted-foreground">
+                No replies yet — be the first to weigh in.
+              </CardContent>
+            </Card>
           ) : (
             replies.map((reply, idx) => {
               const isReplyAuthor = reply.authorId === currentUserId;
@@ -302,7 +328,17 @@ const CommunityPostDetail = () => {
                     ) : (
                       <>
                         <div className="flex items-start justify-between gap-3">
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{reply.content}</p>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
+                              <AuthorTag author={authorsById.get(reply.authorId)} authorId={reply.authorId} />
+                              <span aria-hidden className="text-muted-foreground/40">·</span>
+                              <span>
+                                {timeAgo(reply.createdAt)}
+                                {reply.updatedAt !== reply.createdAt && " · edited"}
+                              </span>
+                            </div>
+                            <RichText text={reply.content} className="text-sm leading-relaxed text-foreground" />
+                          </div>
                           {(isReplyAuthor || canDeleteReply) && (
                             <div className="flex shrink-0 gap-0.5">
                               {isReplyAuthor && (
@@ -328,10 +364,6 @@ const CommunityPostDetail = () => {
                             </div>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {timeAgo(reply.createdAt)}
-                          {reply.updatedAt !== reply.createdAt && " · edited"}
-                        </p>
                       </>
                     )}
                   </CardContent>
@@ -341,22 +373,27 @@ const CommunityPostDetail = () => {
           )}
 
           {/* Reply composer */}
-          <Card className="border-border">
+          <Card className="premium-card border-0">
             <CardContent className="space-y-2 p-4">
               <Textarea
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="Write a reply..."
+                placeholder={replies.length === 0 ? "Share the first reply…" : "Add to the discussion…"}
                 rows={3}
               />
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-semibold">**bold**</span>, <em>*italic*</em>,{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono">`code`</code>, and{" "}
+                  <span className="font-mono">- </span>bullets
+                </p>
                 <LoadingButton
                   size="sm"
                   loading={submittingReply}
                   disabled={!replyContent.trim()}
                   onClick={handleReply}
                 >
-                  Reply
+                  Post reply
                 </LoadingButton>
               </div>
             </CardContent>

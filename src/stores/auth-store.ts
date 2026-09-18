@@ -12,6 +12,8 @@ interface AuthState {
   loading: boolean;
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  sendLoginOtp: (email: string) => Promise<void>;
+  loginWithOtp: (email: string, otp: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<string | null>;
   fetchCurrentUser: () => Promise<void>;
@@ -53,6 +55,15 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email, password) => {
         await authService.login(email, password);
+        set({ isAuthenticated: true });
+      },
+
+      sendLoginOtp: async (email) => {
+        await authService.sendLoginOtp(email);
+      },
+
+      loginWithOtp: async (email, otp) => {
+        await authService.loginWithOtp(email, otp);
         set({ isAuthenticated: true });
       },
 

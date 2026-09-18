@@ -10,7 +10,7 @@ page.on("console", (msg) => {
 });
 page.on("pageerror", (err) => errors.push(String(err)));
 
-await page.goto("http://localhost:5174/login", { waitUntil: "domcontentloaded", timeout: 30000 });
+await page.goto("http://localhost:3001/login", { waitUntil: "domcontentloaded", timeout: 30000 });
 await page.waitForSelector('input[type="email"]', { timeout: 15000 });
 
 await page.fill('input[type="email"]', "godeveloper100k@gmail.com");
@@ -22,7 +22,7 @@ await page.waitForTimeout(1500);
 await page.screenshot({ path: SCRATCH + "01-dashboard.png", fullPage: true });
 
 // Navigate to Community
-await page.goto("http://localhost:5174/community", { waitUntil: "domcontentloaded" });
+await page.goto("http://localhost:3001/community", { waitUntil: "domcontentloaded" });
 await page.waitForSelector("text=Community", { timeout: 15000 });
 await page.waitForTimeout(1000);
 await page.screenshot({ path: SCRATCH + "02-community-posts.png", fullPage: true });

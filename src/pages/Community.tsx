@@ -6,6 +6,8 @@ import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { COMMUNITY_POSTS, CREATE_COMMUNITY_POST, DELETE_COMMUNITY_POST } from "@/graphql/mutations/community";
 import { timeAgo } from "@/lib/time-ago";
+import { AuthorTag, CommunityUser, initials, colorFor } from "@/components/AuthorTag";
+import { useSeenPosts } from "@/hooks/use-seen-posts";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,8 @@ import {
   Plus,
   MessageSquare,
   Trash2,
+  Sparkles,
+  MessagesSquare,
 } from "lucide-react";
 
 type CommunityPost = {
@@ -56,55 +60,10 @@ type CommunityPost = {
   updatedAt: string;
 };
 
-type CommunityUserDetails = {
-  title?: string | null;
-  bio?: string | null;
-  profilePicUrl?: string | null;
-  githubUsername?: string | null;
-  linkedInUrl?: string | null;
-  isPublic?: boolean;
-};
-
-type CommunityUser = {
-  id: string;
-  email: string;
-  name?: string | null;
-  systemRole: string;
-  createdAt: string;
-  details?: CommunityUserDetails | null;
-};
-
 const withProtocol = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 const SLACK_INVITE_URL =
   "https://join.slack.com/t/teamhustlersworld/shared_invite/zt-3lihulkj7-2gCwffDBf5tGc1Zpus_NZw";
-
-const initials = (name?: string | null, email?: string) => {
-  const base = name?.trim() || email || "";
-  return (
-    base
-      .split(/[\s@.]+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase())
-      .join("") || "?"
-  );
-};
-
-// Deterministic accent color per person, purely cosmetic — keeps avatar
-// initials from looking identical across the whole grid.
-const AVATAR_COLORS = [
-  "bg-primary/10 text-primary",
-  "bg-accent/15 text-accent",
-  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-];
-const colorFor = (seed: string) => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-};
 
 const MemberAvatar = ({ member }: { member: CommunityUser }) => {
   const [errored, setErrored] = useState(false);
@@ -141,6 +100,21 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
     skip: !orgId,
   });
 
+  // CommunityPost only carries authorId (a UUID) — the backend doesn't join
+  // author name/email onto posts/replies, so we resolve display names
+  // client-side against the org member directory we already fetch for the
+  // Members tab (cache-first, so this is free once that tab has loaded).
+  const { data: membersData } = useQuery<{ getAllUsers: CommunityUser[] }>(GET_ALL_USERS, {
+    variables: { orgId },
+    skip: !orgId,
+    fetchPolicy: "cache-first",
+  });
+  const authorsById = useMemo(() => {
+    const map = new Map<string, CommunityUser>();
+    for (const m of membersData?.getAllUsers ?? []) map.set(m.id, m);
+    return map;
+  }, [membersData]);
+
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -148,6 +122,8 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
 
   const [deleteTarget, setDeleteTarget] = useState<CommunityPost | null>(null);
   const [deletePost, { loading: deleting }] = useMutation(DELETE_COMMUNITY_POST);
+
+  const { isNew } = useSeenPosts();
 
   const posts = data?.communityPosts.data ?? [];
 
@@ -179,9 +155,25 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
     }
   };
 
+  const totalReplies = posts.reduce((sum, p) => sum + p.replyCount, 0);
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+          {posts.length > 0 && (
+            <>
+              <span className="flex items-center gap-1.5">
+                <MessagesSquare className="h-3.5 w-3.5" />
+                {posts.length} {posts.length === 1 ? "discussion" : "discussions"}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" />
+                {totalReplies} {totalReplies === 1 ? "reply" : "replies"} total
+              </span>
+            </>
+          )}
+        </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5">
@@ -194,20 +186,29 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
               <DialogTitle>Start a discussion</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Give it a clear, specific title"
+                autoFocus
+              />
               <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="What's on your mind?"
+                placeholder="Ask a question, share something you built, or start a conversation…"
                 rows={5}
               />
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] text-muted-foreground">
+                  Supports <span className="font-semibold">**bold**</span>, <em>*italic*</em>,{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono">`code`</code>, bullets
+                </p>
                 <LoadingButton
                   loading={creating}
                   disabled={!title.trim() || !content.trim()}
                   onClick={handleCreate}
                 >
-                  Post
+                  Publish post
                 </LoadingButton>
               </div>
             </div>
@@ -231,15 +232,28 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
           </CardContent>
         </Card>
       ) : posts.length === 0 ? (
-        <Card className="border-border">
-          <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            No posts yet. Start the first discussion.
+        <Card className="premium-card border-0">
+          <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+              <MessagesSquare className="h-7 w-7 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">No discussions yet</p>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Ask a question, share what you're building, or just say hi — someone in the org will see it.
+              </p>
+            </div>
+            <Button size="sm" className="mt-1 gap-1.5" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Start the first discussion
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
           {posts.map((post, idx) => {
             const canDelete = post.authorId === currentUserId || isOrgAdmin;
+            const showNewBadge = post.authorId !== currentUserId && isNew(post.createdAt);
             return (
               <Card
                 key={post.id}
@@ -249,8 +263,14 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
               >
                 <CardContent className="space-y-2.5 p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">
+                    <h3 className="flex items-center gap-2 text-[15px] font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">
                       {post.title}
+                      {showNewBadge && (
+                        <span className="inline-flex shrink-0 animate-pop-in items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          New
+                        </span>
+                      )}
                     </h3>
                     {canDelete && (
                       <Button
@@ -267,7 +287,9 @@ const PostsFeed = ({ orgId }: { orgId: string }) => {
                     )}
                   </div>
                   <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{post.content}</p>
-                  <div className="flex items-center gap-3 pt-1 text-xs font-medium text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs font-medium text-muted-foreground">
+                    <AuthorTag author={authorsById.get(post.authorId)} authorId={post.authorId} />
+                    <span aria-hidden className="text-muted-foreground/40">·</span>
                     <span>{timeAgo(post.createdAt)}</span>
                     <span className="flex items-center gap-1">
                       <MessageSquare className="h-3 w-3" />

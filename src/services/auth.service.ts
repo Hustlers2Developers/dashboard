@@ -43,6 +43,22 @@ export const authService = {
     setAccessToken(data.login.accessToken);
   },
 
+  /** Rate-limited to 2 sends/day/account server-side. */
+  async sendLoginOtp(email: string): Promise<void> {
+    await gql<{ sendLoginOtp: boolean }>(
+      `mutation SendLoginOtp($input: SendLoginOtpInput!) { sendLoginOtp(input: $input) }`,
+      { input: { email } },
+    );
+  },
+
+  async loginWithOtp(email: string, otp: string): Promise<void> {
+    const data = await gql<{ loginWithOtp: { accessToken: string } }>(
+      `mutation LoginWithOtp($input: LoginWithOtpInput!) { loginWithOtp(input: $input) { accessToken } }`,
+      { input: { email, otp } },
+    );
+    setAccessToken(data.loginWithOtp.accessToken);
+  },
+
   async refreshTokens(): Promise<string> {
     const { getAccessToken } = await import('@/lib/auth/token-manager');
     const currentToken = getAccessToken();
