@@ -13,11 +13,13 @@ import {
   GET_MEMBERSHIPS,
   GET_ORG_ROLES,
 } from "@/graphql/mutations/memberships";
+import { GRANT_ACHIEVEMENT, SEND_ANNOUNCEMENT } from "@/graphql/mutations/notifications";
 import { useIsOrgAdmin } from "@/hooks/use-org-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,6 +54,8 @@ import {
 import { toast } from "sonner";
 import {
   AlertCircle,
+  Award,
+  Megaphone,
   Search,
   ShieldCheck,
   ShieldOff,
@@ -140,6 +144,14 @@ const Users = () => {
   // tracked client-side per-session once toggled via setUserActive.
   const [deactivatedIds, setDeactivatedIds] = useState<Set<string>>(new Set());
 
+  const [achievementTarget, setAchievementTarget] = useState<AppUser | null>(null);
+  const [achievementTitle, setAchievementTitle] = useState("");
+  const [achievementMessage, setAchievementMessage] = useState("");
+
+  const [announceOpen, setAnnounceOpen] = useState(false);
+  const [announceTitle, setAnnounceTitle] = useState("");
+  const [announceMessage, setAnnounceMessage] = useState("");
+
   const {
     data: usersData,
     loading: loadingUsers,
@@ -177,6 +189,10 @@ const Users = () => {
   const [setUserActive, { loading: togglingActive }] = useMutation(SET_USER_ACTIVE);
   const [updateUserSystemRole] = useMutation(UPDATE_USER_SYSTEM_ROLE);
   const [changingRoleId, setChangingRoleId] = useState<string | null>(null);
+  const [grantAchievement, { loading: grantingAchievement }] =
+    useMutation(GRANT_ACHIEVEMENT);
+  const [sendAnnouncement, { loading: sendingAnnouncement }] =
+    useMutation(SEND_ANNOUNCEMENT);
 
   const users = useMemo(() => usersData?.getAllUsers ?? [], [usersData]);
   const organizations = useMemo(
@@ -262,6 +278,71 @@ const Users = () => {
     }
   };
 
+  const openAchievement = (user: AppUser) => {
+    setAchievementTarget(user);
+    setAchievementTitle("");
+    setAchievementMessage("");
+  };
+
+  const closeAchievement = () => {
+    setAchievementTarget(null);
+    setAchievementTitle("");
+    setAchievementMessage("");
+  };
+
+  const handleGrantAchievement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!achievementTarget || !achievementTitle.trim() || !achievementMessage.trim()) {
+      toast.error("Add a title and message for the achievement.");
+      return;
+    }
+    try {
+      await grantAchievement({
+        variables: {
+          input: {
+            userId: achievementTarget.id,
+            title: achievementTitle.trim(),
+            message: achievementMessage.trim(),
+          },
+        },
+      });
+      toast.success(`Achievement granted to ${achievementTarget.name || achievementTarget.email}.`);
+      closeAchievement();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to grant achievement.");
+    }
+  };
+
+  const closeAnnounce = () => {
+    setAnnounceOpen(false);
+    setAnnounceTitle("");
+    setAnnounceMessage("");
+  };
+
+  const handleSendAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!me?.orgId || !announceTitle.trim() || !announceMessage.trim()) {
+      toast.error("Add a title and message for the announcement.");
+      return;
+    }
+    try {
+      const { data } = await sendAnnouncement({
+        variables: {
+          input: {
+            organizationId: me.orgId,
+            title: announceTitle.trim(),
+            message: announceMessage.trim(),
+          },
+        },
+      });
+      const recipientCount = data?.sendAnnouncement ?? 0;
+      toast.success(`Announcement sent to ${recipientCount} member${recipientCount === 1 ? "" : "s"}.`);
+      closeAnnounce();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to send announcement.");
+    }
+  };
+
   const handleToggleActive = async () => {
     if (!deactivateTarget) return;
     const nextActive = deactivatedIds.has(deactivateTarget.id);
@@ -340,9 +421,20 @@ const Users = () => {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => refetchUsers()} disabled={loadingUsers}>
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setAnnounceOpen(true)}
+              disabled={!me?.orgId}
+            >
+              <Megaphone className="h-4 w-4" />
+              Send announcement
+            </Button>
+            <Button variant="outline" onClick={() => refetchUsers()} disabled={loadingUsers}>
+              Refresh
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -490,6 +582,14 @@ const Users = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openAchievement(user)}
+                            >
+                              <Award className="mr-2 h-4 w-4" />
+                              Grant achievement
+                            </Button>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span>
@@ -638,6 +738,103 @@ const Users = () => {
                   disabled={!assignOrgId || !assignRoleId}
                 >
                   Add member
+                </LoadingButton>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={!!achievementTarget}
+          onOpenChange={(o) => { if (!o) closeAchievement(); }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Grant an achievement</DialogTitle>
+              <DialogDescription>
+                {achievementTarget
+                  ? `${achievementTarget.name || achievementTarget.email} will receive an achievement notification.`
+                  : ""}
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleGrantAchievement} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input
+                  value={achievementTitle}
+                  onChange={(e) => setAchievementTitle(e.target.value)}
+                  placeholder="e.g. Bug Squasher"
+                  maxLength={120}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Message</Label>
+                <Textarea
+                  value={achievementMessage}
+                  onChange={(e) => setAchievementMessage(e.target.value)}
+                  placeholder="What did they do to earn this?"
+                  rows={3}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeAchievement}>
+                  Cancel
+                </Button>
+                <LoadingButton
+                  type="submit"
+                  className="gold-gradient text-primary-foreground"
+                  loading={grantingAchievement}
+                  loadingText="Granting..."
+                  disabled={!achievementTitle.trim() || !achievementMessage.trim()}
+                >
+                  Grant achievement
+                </LoadingButton>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={announceOpen} onOpenChange={(o) => (o ? setAnnounceOpen(true) : closeAnnounce())}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send an announcement</DialogTitle>
+              <DialogDescription>
+                Every active member of your organization will get this as a notification.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleSendAnnouncement} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input
+                  value={announceTitle}
+                  onChange={(e) => setAnnounceTitle(e.target.value)}
+                  placeholder="e.g. Office closed Friday"
+                  maxLength={120}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Message</Label>
+                <Textarea
+                  value={announceMessage}
+                  onChange={(e) => setAnnounceMessage(e.target.value)}
+                  placeholder="Details for the whole org..."
+                  rows={4}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeAnnounce}>
+                  Cancel
+                </Button>
+                <LoadingButton
+                  type="submit"
+                  className="gold-gradient text-primary-foreground"
+                  loading={sendingAnnouncement}
+                  loadingText="Sending..."
+                  disabled={!announceTitle.trim() || !announceMessage.trim()}
+                >
+                  Send announcement
                 </LoadingButton>
               </DialogFooter>
             </form>

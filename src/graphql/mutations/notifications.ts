@@ -50,3 +50,15 @@ export const SEND_ANNOUNCEMENT = gql`
     sendAnnouncement(input: $input)
   }
 `;
+
+export const GRANT_ACHIEVEMENT = gql`
+  mutation GrantAchievement($input: GrantAchievementInput!) {
+    grantAchievement(input: $input) {
+      id
+      type
+      title
+      message
+      createdAt
+    }
+  }
+`;

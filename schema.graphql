@@ -133,6 +133,40 @@ input BulkMarkAttendanceInput {
   organizationId: String!
 }
 
+type CommunityPost {
+  authorId: String!
+  content: String!
+  createdAt: String!
+  id: ID!
+  organizationId: String!
+  """
+  Total replies on this post — always available even when replies aren't fetched, so list views can show a count without a second query.
+  """
+  replyCount: Int!
+  title: String!
+  updatedAt: String!
+}
+
+type CommunityReply {
+  authorId: String!
+  content: String!
+  createdAt: String!
+  id: ID!
+  postId: String!
+  updatedAt: String!
+}
+
+input CreateCommunityPostInput {
+  content: String!
+  organizationId: String!
+  title: String!
+}
+
+input CreateCommunityReplyInput {
+  content: String!
+  postId: String!
+}
+
 input CreateDepartmentInput {
   name: String!
   """
@@ -186,6 +220,7 @@ input CreatePositionInput {
 
 input CreateProjectInput {
   description: String
+  githubRepoUrl: String
   name: String!
   organizationId: String!
 }
@@ -266,6 +301,12 @@ type GithubContributionEntry {
   linkedUserId: String
   linkedUserName: String
   syncedAt: String!
+}
+
+input GrantAchievementInput {
+  message: String!
+  title: String!
+  userId: String!
 }
 
 type GuestApplication {
@@ -418,6 +459,15 @@ input LoginInput {
   password: String!
 }
 
+"""
+Verifies the OTP emailed via sendLoginOtp and logs in as that account.
+Does not create new accounts.
+"""
+input LoginWithOtpInput {
+  email: String!
+  otp: String!
+}
+
 input MarkAttendanceInput {
   date: String!
   organizationId: String!
@@ -516,6 +566,8 @@ type Mutation {
   bulkMarkAttendance(input: BulkMarkAttendanceInput!): BulkAttendanceResult!
   checkIn(organizationId: String!): Attendance!
   checkOut: Attendance!
+  createCommunityPost(input: CreateCommunityPostInput!): CommunityPost!
+  createCommunityReply(input: CreateCommunityReplyInput!): CommunityReply!
   createDepartment(input: CreateDepartmentInput!): Department!
   createInviteLink(input: CreateInviteInput!): CreateInviteLinkResponse!
   createMembership(input: CreateMembershipInput!): Membership!
@@ -530,6 +582,12 @@ type Mutation {
   createTask(input: CreateTaskInput!): Task!
   createTeam(input: CreateTeamInput!): Team!
   createTeamMember(input: CreateTeamMemberInput!): TeamMember!
+  """
+  The post's author or an org admin/super-admin can delete it (also deletes its replies).
+  """
+  deleteCommunityPost(id: String!): Boolean!
+  """The reply's author or an org admin/super-admin can delete it."""
+  deleteCommunityReply(id: String!): Boolean!
   deleteDepartment(id: String!): Boolean!
   """Revoke/delete a pending invite. Requires org ADMIN or SUPER_ADMIN."""
   deleteInvite(inviteId: ID!): Boolean!
@@ -542,14 +600,23 @@ type Mutation {
   deleteTeam(id: String!): Boolean!
   deleteTeamMember(id: String!): Boolean!
   """
+  Grants an ACHIEVEMENT notification to a specific user. Requires org admin or super-admin.
+  """
+  grantAchievement(input: GrantAchievementInput!): Notification!
+  """
   Links the authenticated user's Telegram account, verified via the
   Telegram Login Widget's signed payload. Once linked, this user's join
   requests on the gated Telegram channel are auto-approved.
   """
   linkTelegramAccount(input: TelegramLoginWidgetInput!): TelegramLinkResult!
   login(input: LoginInput!): AuthResponse!
+  """Logs in using the code emailed via sendLoginOtp."""
+  loginWithOtp(input: LoginWithOtpInput!): AuthResponse!
   logout: Boolean!
+  """Marks every unread notification for the current user as read."""
+  markAllNotificationsRead: Int!
   markAttendance(input: MarkAttendanceInput!): Attendance!
+  markNotificationRead(id: String!): Notification!
   """
   Records a daily visit (login activity) for the authenticated user and updates their streak.
   
@@ -597,7 +664,18 @@ type Mutation {
   """
   resendInviteLink(inviteId: ID!): CreateInviteLinkResponse!
   resetPassword(input: ResetPasswordInput!): Boolean!
+  """
+  Sends an ANNOUNCEMENT notification to every active member of the organization. Requires org admin or super-admin.
+  """
+  sendAnnouncement(input: SendAnnouncementInput!): Int!
   sendGlobalIdOtp(input: SendGlobalIdOtpInput!): Boolean!
+  """
+  Emails a one-time login code to this account — a passwordless
+  alternative to login for a user who's forgotten their password but
+  still has access to their inbox. Call this before loginWithOtp.
+  Rate-limited to 2 sends/day/account.
+  """
+  sendLoginOtp(input: SendLoginOtpInput!): Boolean!
   """
   SUPER_ADMIN only — deactivate or reactivate a user account platform-wide.
   Deactivated users cannot log in; their memberships are left untouched
@@ -638,6 +716,10 @@ type Mutation {
   from that Telegram account will be declined until re-linked.
   """
   unlinkTelegramAccount: TelegramLinkResult!
+  """Only the post's author can update it."""
+  updateCommunityPost(id: String!, input: UpdateCommunityPostInput!): CommunityPost!
+  """Only the reply's author can update it."""
+  updateCommunityReply(id: String!, input: UpdateCommunityReplyInput!): CommunityReply!
   updateDepartment(id: String!, input: UpdateDepartmentInput!): Department!
   """
   Update a member's role within an organization.
@@ -661,6 +743,27 @@ type Mutation {
   """SUPER_ADMIN only — promote/demote a user's platform-level systemRole."""
   updateUserSystemRole(systemRole: SystemRole!, userId: ID!): User!
   verifyGlobalIdOtp(input: VerifyGlobalIdOtpInput!): String!
+}
+
+type Notification {
+  createdAt: String!
+  id: ID!
+  isRead: Boolean!
+  message: String!
+  """
+  Free-form JSON context for deep-linking (e.g. postId for COMMUNITY_REPLY), stringified.
+  """
+  metadata: String
+  title: String!
+  type: NotificationType!
+}
+
+enum NotificationType {
+  ACHIEVEMENT
+  ANNOUNCEMENT
+  BIRTHDAY
+  COMMUNITY_REPLY
+  WORK_ANNIVERSARY
 }
 
 type Organization {
@@ -704,8 +807,25 @@ type PaginatedAttendance {
   total: Int!
 }
 
+"""Paginated community posts, newest first."""
+type PaginatedCommunityPosts {
+  data: [CommunityPost!]!
+  pageInfo: PageInfo!
+}
+
+"""Paginated replies on a post, oldest first (natural reading order)."""
+type PaginatedCommunityReplies {
+  data: [CommunityReply!]!
+  pageInfo: PageInfo!
+}
+
 type PaginatedDepartments {
   data: [Department!]!
+  pageInfo: PageInfo!
+}
+
+type PaginatedNotifications {
+  data: [Notification!]!
   pageInfo: PageInfo!
 }
 
@@ -753,10 +873,24 @@ type Position {
 type Project {
   createdAt: String!
   description: String
+  """
+  Optional — e.g. "https://github.com/org/repo". Set this to enable the contributors query and GitHub Actions PR-sync for this project's tasks.
+  """
+  githubRepoUrl: String
   id: ID!
   name: String!
   organizationId: String!
   updatedAt: String!
+}
+
+"""
+One contributor on a project's linked GitHub repo, from GitHub's own contributors API (live, not cached).
+"""
+type ProjectContributor {
+  avatarUrl: String!
+  contributions: Int!
+  profileUrl: String!
+  username: String!
 }
 
 type ProjectMember {
@@ -797,6 +931,15 @@ type Query {
   analyticsOverview(range: AnalyticsRange): AnalyticsOverview!
   attendanceByOrganization(input: AttendanceFilterInput!): PaginatedAttendance!
   attendanceSummaryByUser(userId: String!): AttendanceSummary
+  communityPost(id: String!): CommunityPost
+  """
+  Paginated posts for an organization, newest first. Requires org membership.
+  """
+  communityPosts(organizationId: String!, pagination: PaginationInput): PaginatedCommunityPosts!
+  """
+  Paginated replies on a post, oldest first. Requires membership in the post's organization.
+  """
+  communityReplies(pagination: PaginationInput, postId: String!): PaginatedCommunityReplies!
   currentUser: AuthUser!
   """
   Returns the motivational quote for today (UTC). Consistent within a UTC day.
@@ -886,6 +1029,8 @@ type Query {
   **Auth:** Requires a valid JWT. Caller must be a member of the org or SUPER_ADMIN.
   """
   myLeaderboardRank(organizationId: String): LeaderboardRank!
+  """The authenticated user's notifications, newest first."""
+  myNotifications(pagination: PaginationInput): PaginatedNotifications!
   """
   Returns the authenticated user's role in the given organization.
   Returns null if the user is not a member.
@@ -898,6 +1043,8 @@ type Query {
   **Auth:** Requires a valid JWT.
   """
   myStreak: UserStreakInfo!
+  """Count of unread notifications for the bell-icon badge."""
+  myUnreadNotificationCount: Int!
   """
   Returns streak info for all active members of an organization.
   Sorted by currentStreak descending (leaderboard order).
@@ -916,6 +1063,12 @@ type Query {
   positionsByDepartment(departmentId: String!): [Position!]!
   positionsByOrganization(organizationId: String!): [Position!]!
   project(id: String!): Project
+  """
+  Live contributors on the project's linked GitHub repo (fetched from
+  GitHub's contributors API, not cached). Returns an empty list if the
+  project has no githubRepoUrl set.
+  """
+  projectContributors(projectId: String!): [ProjectContributor!]!
   """List all members of a project. Requires org membership."""
   projectMembers(projectId: String!): [ProjectMember!]!
   """List all projects a user is a direct member of within an organization."""
@@ -945,6 +1098,13 @@ type Query {
   """Paginated teams in an organization. Defaults to page 1, limit 20."""
   teamsByOrganizationPaginated(organizationId: String!, pagination: PaginationInput): PaginatedTeams!
   teamsByProject(projectId: String!): [Team!]!
+  """
+  The gated channel's invite link, only for a user whose Telegram account
+  is already linked (join requests from linked accounts are
+  auto-approved — see the webhook). Returns null if unlinked, so the
+  frontend can't hand out the link before the user actually links.
+  """
+  telegramChannelInviteLink: String
   """
   Returns the top N streakers in an organization, ranked by currentStreak desc.
   limit: max results (1–50, default 10).
@@ -1026,7 +1186,17 @@ type Role {
   organizationId: String
 }
 
+input SendAnnouncementInput {
+  message: String!
+  organizationId: String!
+  title: String!
+}
+
 input SendGlobalIdOtpInput {
+  email: String!
+}
+
+input SendLoginOtpInput {
   email: String!
 }
 
@@ -1113,9 +1283,17 @@ type Task {
   description: String
   githubBranch: String
   githubIssueUrl: String
+  """
+  Set automatically by the GitHub Actions PR-sync endpoint once a PR references this task — not directly editable.
+  """
+  githubPrUrl: String
   githubRepo: String
   id: ID!
   projectId: String!
+  """
+  Sequential number within the project (e.g. 7 for "TASK-7") — reference this in a PR title/branch as "task-7" so the GitHub Actions PR-sync endpoint can link the PR to this task.
+  """
+  shortNumber: Int!
   status: TaskStatus!
   title: String!
   updatedAt: String!
@@ -1204,6 +1382,15 @@ type TopReferrer {
   referrer: String!
 }
 
+input UpdateCommunityPostInput {
+  content: String
+  title: String
+}
+
+input UpdateCommunityReplyInput {
+  content: String!
+}
+
 input UpdateDepartmentInput {
   name: String
 }
@@ -1250,6 +1437,7 @@ input UpdateProfileInput {
 
 input UpdateProjectInput {
   description: String
+  githubRepoUrl: String
   name: String
 }
 

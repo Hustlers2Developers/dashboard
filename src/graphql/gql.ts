@@ -15,12 +15,16 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  */
 type Documents = {
     "mutation Login($input: LoginInput!) { login(input: $input) { accessToken } }": typeof types.LoginDocument,
+    "mutation SendLoginOtp($input: SendLoginOtpInput!) { sendLoginOtp(input: $input) }": typeof types.SendLoginOtpDocument,
+    "mutation LoginWithOtp($input: LoginWithOtpInput!) { loginWithOtp(input: $input) { accessToken } }": typeof types.LoginWithOtpDocument,
     "mutation RefreshTokens { refreshTokens { accessToken } }": typeof types.RefreshTokensDocument,
     "mutation Logout { logout }": typeof types.LogoutDocument,
     "query CurrentUser { currentUser { sub email systemRole orgId } }": typeof types.CurrentUserDocument,
 };
 const documents: Documents = {
     "mutation Login($input: LoginInput!) { login(input: $input) { accessToken } }": types.LoginDocument,
+    "mutation SendLoginOtp($input: SendLoginOtpInput!) { sendLoginOtp(input: $input) }": types.SendLoginOtpDocument,
+    "mutation LoginWithOtp($input: LoginWithOtpInput!) { loginWithOtp(input: $input) { accessToken } }": types.LoginWithOtpDocument,
     "mutation RefreshTokens { refreshTokens { accessToken } }": types.RefreshTokensDocument,
     "mutation Logout { logout }": types.LogoutDocument,
     "query CurrentUser { currentUser { sub email systemRole orgId } }": types.CurrentUserDocument,
@@ -44,6 +48,14 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "mutation Login($input: LoginInput!) { login(input: $input) { accessToken } }"): (typeof documents)["mutation Login($input: LoginInput!) { login(input: $input) { accessToken } }"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "mutation SendLoginOtp($input: SendLoginOtpInput!) { sendLoginOtp(input: $input) }"): (typeof documents)["mutation SendLoginOtp($input: SendLoginOtpInput!) { sendLoginOtp(input: $input) }"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "mutation LoginWithOtp($input: LoginWithOtpInput!) { loginWithOtp(input: $input) { accessToken } }"): (typeof documents)["mutation LoginWithOtp($input: LoginWithOtpInput!) { loginWithOtp(input: $input) { accessToken } }"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

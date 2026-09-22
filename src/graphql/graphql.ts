@@ -154,6 +154,40 @@ export type BulkMarkAttendanceInput = {
   organizationId: Scalars['String']['input'];
 };
 
+export type CommunityPost = {
+  __typename?: 'CommunityPost';
+  authorId: Scalars['String']['output'];
+  content: Scalars['String']['output'];
+  createdAt: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  organizationId: Scalars['String']['output'];
+  /** Total replies on this post — always available even when replies aren't fetched, so list views can show a count without a second query. */
+  replyCount: Scalars['Int']['output'];
+  title: Scalars['String']['output'];
+  updatedAt: Scalars['String']['output'];
+};
+
+export type CommunityReply = {
+  __typename?: 'CommunityReply';
+  authorId: Scalars['String']['output'];
+  content: Scalars['String']['output'];
+  createdAt: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  postId: Scalars['String']['output'];
+  updatedAt: Scalars['String']['output'];
+};
+
+export type CreateCommunityPostInput = {
+  content: Scalars['String']['input'];
+  organizationId: Scalars['String']['input'];
+  title: Scalars['String']['input'];
+};
+
+export type CreateCommunityReplyInput = {
+  content: Scalars['String']['input'];
+  postId: Scalars['String']['input'];
+};
+
 export type CreateDepartmentInput = {
   name: Scalars['String']['input'];
   /**
@@ -239,7 +273,6 @@ export type CreateTaskInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   githubBranch?: InputMaybe<Scalars['String']['input']>;
   githubIssueUrl?: InputMaybe<Scalars['String']['input']>;
-  githubPrUrl?: InputMaybe<Scalars['String']['input']>;
   githubRepo?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['String']['input'];
   status?: InputMaybe<TaskStatus>;
@@ -289,6 +322,12 @@ export type GithubContributionEntry = {
   linkedUserId?: Maybe<Scalars['String']['output']>;
   linkedUserName?: Maybe<Scalars['String']['output']>;
   syncedAt: Scalars['String']['output'];
+};
+
+export type GrantAchievementInput = {
+  message: Scalars['String']['input'];
+  title: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 export type GuestApplication = {
@@ -441,6 +480,15 @@ export type LoginInput = {
   password: Scalars['String']['input'];
 };
 
+/**
+ * Verifies the OTP emailed via sendLoginOtp and logs in as that account.
+ * Does not create new accounts.
+ */
+export type LoginWithOtpInput = {
+  email: Scalars['String']['input'];
+  otp: Scalars['String']['input'];
+};
+
 export type MarkAttendanceInput = {
   date: Scalars['String']['input'];
   organizationId: Scalars['String']['input'];
@@ -544,6 +592,8 @@ export type Mutation = {
   bulkMarkAttendance: BulkAttendanceResult;
   checkIn: Attendance;
   checkOut: Attendance;
+  createCommunityPost: CommunityPost;
+  createCommunityReply: CommunityReply;
   createDepartment: Department;
   createInviteLink: CreateInviteLinkResponse;
   createMembership: Membership;
@@ -556,6 +606,10 @@ export type Mutation = {
   createTask: Task;
   createTeam: Team;
   createTeamMember: TeamMember;
+  /** The post's author or an org admin/super-admin can delete it (also deletes its replies). */
+  deleteCommunityPost: Scalars['Boolean']['output'];
+  /** The reply's author or an org admin/super-admin can delete it. */
+  deleteCommunityReply: Scalars['Boolean']['output'];
   deleteDepartment: Scalars['Boolean']['output'];
   /** Revoke/delete a pending invite. Requires org ADMIN or SUPER_ADMIN. */
   deleteInvite: Scalars['Boolean']['output'];
@@ -567,6 +621,8 @@ export type Mutation = {
   deleteTask: Scalars['Boolean']['output'];
   deleteTeam: Scalars['Boolean']['output'];
   deleteTeamMember: Scalars['Boolean']['output'];
+  /** Grants an ACHIEVEMENT notification to a specific user. Requires org admin or super-admin. */
+  grantAchievement: Notification;
   /**
    * Links the authenticated user's Telegram account, verified via the
    * Telegram Login Widget's signed payload. Once linked, this user's join
@@ -574,8 +630,13 @@ export type Mutation = {
    */
   linkTelegramAccount: TelegramLinkResult;
   login: AuthResponse;
+  /** Logs in using the code emailed via sendLoginOtp. */
+  loginWithOtp: AuthResponse;
   logout: Scalars['Boolean']['output'];
+  /** Marks every unread notification for the current user as read. */
+  markAllNotificationsRead: Scalars['Int']['output'];
   markAttendance: Attendance;
+  markNotificationRead: Notification;
   /**
    * Records a daily visit (login activity) for the authenticated user and updates their streak.
    *
@@ -621,7 +682,16 @@ export type Mutation = {
    */
   resendInviteLink: CreateInviteLinkResponse;
   resetPassword: Scalars['Boolean']['output'];
+  /** Sends an ANNOUNCEMENT notification to every active member of the organization. Requires org admin or super-admin. */
+  sendAnnouncement: Scalars['Int']['output'];
   sendGlobalIdOtp: Scalars['Boolean']['output'];
+  /**
+   * Emails a one-time login code to this account — a passwordless
+   * alternative to login for a user who's forgotten their password but
+   * still has access to their inbox. Call this before loginWithOtp.
+   * Rate-limited to 2 sends/day/account.
+   */
+  sendLoginOtp: Scalars['Boolean']['output'];
   /**
    * SUPER_ADMIN only — deactivate or reactivate a user account platform-wide.
    * Deactivated users cannot log in; their memberships are left untouched
@@ -662,6 +732,10 @@ export type Mutation = {
    * from that Telegram account will be declined until re-linked.
    */
   unlinkTelegramAccount: TelegramLinkResult;
+  /** Only the post's author can update it. */
+  updateCommunityPost: CommunityPost;
+  /** Only the reply's author can update it. */
+  updateCommunityReply: CommunityReply;
   updateDepartment: Department;
   /**
    * Update a member's role within an organization.
@@ -730,6 +804,16 @@ export type MutationCheckInArgs = {
 };
 
 
+export type MutationCreateCommunityPostArgs = {
+  input: CreateCommunityPostInput;
+};
+
+
+export type MutationCreateCommunityReplyArgs = {
+  input: CreateCommunityReplyInput;
+};
+
+
 export type MutationCreateDepartmentArgs = {
   input: CreateDepartmentInput;
 };
@@ -785,6 +869,16 @@ export type MutationCreateTeamMemberArgs = {
 };
 
 
+export type MutationDeleteCommunityPostArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type MutationDeleteCommunityReplyArgs = {
+  id: Scalars['String']['input'];
+};
+
+
 export type MutationDeleteDepartmentArgs = {
   id: Scalars['String']['input'];
 };
@@ -830,6 +924,11 @@ export type MutationDeleteTeamMemberArgs = {
 };
 
 
+export type MutationGrantAchievementArgs = {
+  input: GrantAchievementInput;
+};
+
+
 export type MutationLinkTelegramAccountArgs = {
   input: TelegramLoginWidgetInput;
 };
@@ -840,8 +939,18 @@ export type MutationLoginArgs = {
 };
 
 
+export type MutationLoginWithOtpArgs = {
+  input: LoginWithOtpInput;
+};
+
+
 export type MutationMarkAttendanceArgs = {
   input: MarkAttendanceInput;
+};
+
+
+export type MutationMarkNotificationReadArgs = {
+  id: Scalars['String']['input'];
 };
 
 
@@ -890,8 +999,18 @@ export type MutationResetPasswordArgs = {
 };
 
 
+export type MutationSendAnnouncementArgs = {
+  input: SendAnnouncementInput;
+};
+
+
 export type MutationSendGlobalIdOtpArgs = {
   input: SendGlobalIdOtpInput;
+};
+
+
+export type MutationSendLoginOtpArgs = {
+  input: SendLoginOtpInput;
 };
 
 
@@ -913,6 +1032,18 @@ export type MutationSubmitGuestApplicationFromApplyServiceArgs = {
 
 export type MutationSubmitReferralApplicationArgs = {
   input: SubmitReferralApplicationInput;
+};
+
+
+export type MutationUpdateCommunityPostArgs = {
+  id: Scalars['String']['input'];
+  input: UpdateCommunityPostInput;
+};
+
+
+export type MutationUpdateCommunityReplyArgs = {
+  id: Scalars['String']['input'];
+  input: UpdateCommunityReplyInput;
 };
 
 
@@ -990,6 +1121,26 @@ export type MutationVerifyGlobalIdOtpArgs = {
   input: VerifyGlobalIdOtpInput;
 };
 
+export type Notification = {
+  __typename?: 'Notification';
+  createdAt: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isRead: Scalars['Boolean']['output'];
+  message: Scalars['String']['output'];
+  /** Free-form JSON context for deep-linking (e.g. postId for COMMUNITY_REPLY), stringified. */
+  metadata?: Maybe<Scalars['String']['output']>;
+  title: Scalars['String']['output'];
+  type: NotificationType;
+};
+
+export enum NotificationType {
+  Achievement = 'ACHIEVEMENT',
+  Announcement = 'ANNOUNCEMENT',
+  Birthday = 'BIRTHDAY',
+  CommunityReply = 'COMMUNITY_REPLY',
+  WorkAnniversary = 'WORK_ANNIVERSARY'
+}
+
 export type Organization = {
   __typename?: 'Organization';
   id: Scalars['ID']['output'];
@@ -1030,9 +1181,29 @@ export type PaginatedAttendance = {
   total: Scalars['Int']['output'];
 };
 
+/** Paginated community posts, newest first. */
+export type PaginatedCommunityPosts = {
+  __typename?: 'PaginatedCommunityPosts';
+  data: Array<CommunityPost>;
+  pageInfo: PageInfo;
+};
+
+/** Paginated replies on a post, oldest first (natural reading order). */
+export type PaginatedCommunityReplies = {
+  __typename?: 'PaginatedCommunityReplies';
+  data: Array<CommunityReply>;
+  pageInfo: PageInfo;
+};
+
 export type PaginatedDepartments = {
   __typename?: 'PaginatedDepartments';
   data: Array<Department>;
+  pageInfo: PageInfo;
+};
+
+export type PaginatedNotifications = {
+  __typename?: 'PaginatedNotifications';
+  data: Array<Notification>;
   pageInfo: PageInfo;
 };
 
@@ -1087,6 +1258,7 @@ export type Project = {
   __typename?: 'Project';
   createdAt: Scalars['String']['output'];
   description?: Maybe<Scalars['String']['output']>;
+  /** Optional — e.g. "https://github.com/org/repo". Set this to enable the contributors query and GitHub Actions PR-sync for this project's tasks. */
   githubRepoUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
@@ -1094,9 +1266,10 @@ export type Project = {
   updatedAt: Scalars['String']['output'];
 };
 
+/** One contributor on a project's linked GitHub repo, from GitHub's own contributors API (live, not cached). */
 export type ProjectContributor = {
   __typename?: 'ProjectContributor';
-  avatarUrl?: Maybe<Scalars['String']['output']>;
+  avatarUrl: Scalars['String']['output'];
   contributions: Scalars['Int']['output'];
   profileUrl: Scalars['String']['output'];
   username: Scalars['String']['output'];
@@ -1142,6 +1315,11 @@ export type Query = {
   analyticsOverview: AnalyticsOverview;
   attendanceByOrganization: PaginatedAttendance;
   attendanceSummaryByUser?: Maybe<AttendanceSummary>;
+  communityPost?: Maybe<CommunityPost>;
+  /** Paginated posts for an organization, newest first. Requires org membership. */
+  communityPosts: PaginatedCommunityPosts;
+  /** Paginated replies on a post, oldest first. Requires membership in the post's organization. */
+  communityReplies: PaginatedCommunityReplies;
   currentUser: AuthUser;
   /**
    * Returns the motivational quote for today (UTC). Consistent within a UTC day.
@@ -1229,6 +1407,8 @@ export type Query = {
    * **Auth:** Requires a valid JWT. Caller must be a member of the org or SUPER_ADMIN.
    */
   myLeaderboardRank: LeaderboardRank;
+  /** The authenticated user's notifications, newest first. */
+  myNotifications: PaginatedNotifications;
   /**
    * Returns the authenticated user's role in the given organization.
    * Returns null if the user is not a member.
@@ -1241,6 +1421,8 @@ export type Query = {
    * **Auth:** Requires a valid JWT.
    */
   myStreak: UserStreakInfo;
+  /** Count of unread notifications for the bell-icon badge. */
+  myUnreadNotificationCount: Scalars['Int']['output'];
   /**
    * Returns streak info for all active members of an organization.
    * Sorted by currentStreak descending (leaderboard order).
@@ -1259,7 +1441,11 @@ export type Query = {
   positionsByDepartment: Array<Position>;
   positionsByOrganization: Array<Position>;
   project?: Maybe<Project>;
-  /** Live-fetched GitHub contributors for a project's linked repo. Empty if no repo is set or it can't be reached. */
+  /**
+   * Live contributors on the project's linked GitHub repo (fetched from
+   * GitHub's contributors API, not cached). Returns an empty list if the
+   * project has no githubRepoUrl set.
+   */
   projectContributors: Array<ProjectContributor>;
   /** List all members of a project. Requires org membership. */
   projectMembers: Array<ProjectMember>;
@@ -1290,6 +1476,13 @@ export type Query = {
   /** Paginated teams in an organization. Defaults to page 1, limit 20. */
   teamsByOrganizationPaginated: PaginatedTeams;
   teamsByProject: Array<Team>;
+  /**
+   * The gated channel's invite link, only for a user whose Telegram account
+   * is already linked (join requests from linked accounts are
+   * auto-approved — see the webhook). Returns null if unlinked, so the
+   * frontend can't hand out the link before the user actually links.
+   */
+  telegramChannelInviteLink?: Maybe<Scalars['String']['output']>;
   /**
    * Returns the top N streakers in an organization, ranked by currentStreak desc.
    * limit: max results (1–50, default 10).
@@ -1342,6 +1535,23 @@ export type QueryAttendanceByOrganizationArgs = {
 
 export type QueryAttendanceSummaryByUserArgs = {
   userId: Scalars['String']['input'];
+};
+
+
+export type QueryCommunityPostArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type QueryCommunityPostsArgs = {
+  organizationId: Scalars['String']['input'];
+  pagination?: InputMaybe<PaginationInput>;
+};
+
+
+export type QueryCommunityRepliesArgs = {
+  pagination?: InputMaybe<PaginationInput>;
+  postId: Scalars['String']['input'];
 };
 
 
@@ -1433,6 +1643,11 @@ export type QueryMyLeaderboardRankArgs = {
 };
 
 
+export type QueryMyNotificationsArgs = {
+  pagination?: InputMaybe<PaginationInput>;
+};
+
+
 export type QueryMyOrgRoleArgs = {
   organizationId: Scalars['String']['input'];
 };
@@ -1470,6 +1685,11 @@ export type QueryPositionsByOrganizationArgs = {
 
 export type QueryProjectArgs = {
   id: Scalars['String']['input'];
+};
+
+
+export type QueryProjectContributorsArgs = {
+  projectId: Scalars['String']['input'];
 };
 
 
@@ -1658,7 +1878,17 @@ export type Role = {
   organizationId?: Maybe<Scalars['String']['output']>;
 };
 
+export type SendAnnouncementInput = {
+  message: Scalars['String']['input'];
+  organizationId: Scalars['String']['input'];
+  title: Scalars['String']['input'];
+};
+
 export type SendGlobalIdOtpInput = {
+  email: Scalars['String']['input'];
+};
+
+export type SendLoginOtpInput = {
   email: Scalars['String']['input'];
 };
 
@@ -1749,10 +1979,12 @@ export type Task = {
   description?: Maybe<Scalars['String']['output']>;
   githubBranch?: Maybe<Scalars['String']['output']>;
   githubIssueUrl?: Maybe<Scalars['String']['output']>;
+  /** Set automatically by the GitHub Actions PR-sync endpoint once a PR references this task — not directly editable. */
   githubPrUrl?: Maybe<Scalars['String']['output']>;
   githubRepo?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   projectId: Scalars['String']['output'];
+  /** Sequential number within the project (e.g. 7 for "TASK-7") — reference this in a PR title/branch as "task-7" so the GitHub Actions PR-sync endpoint can link the PR to this task. */
   shortNumber: Scalars['Int']['output'];
   status: TaskStatus;
   title: Scalars['String']['output'];
@@ -1845,6 +2077,15 @@ export type TopReferrer = {
   referrer: Scalars['String']['output'];
 };
 
+export type UpdateCommunityPostInput = {
+  content?: InputMaybe<Scalars['String']['input']>;
+  title?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateCommunityReplyInput = {
+  content: Scalars['String']['input'];
+};
+
 export type UpdateDepartmentInput = {
   name?: InputMaybe<Scalars['String']['input']>;
 };
@@ -1917,7 +2158,6 @@ export type UpdateTaskInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   githubBranch?: InputMaybe<Scalars['String']['input']>;
   githubIssueUrl?: InputMaybe<Scalars['String']['input']>;
-  githubPrUrl?: InputMaybe<Scalars['String']['input']>;
   githubRepo?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<TaskStatus>;
   title?: InputMaybe<Scalars['String']['input']>;
@@ -2085,6 +2325,20 @@ export type LoginMutationVariables = Exact<{
 
 export type LoginMutation = { __typename?: 'Mutation', login: { __typename?: 'AuthResponse', accessToken: string } };
 
+export type SendLoginOtpMutationVariables = Exact<{
+  input: SendLoginOtpInput;
+}>;
+
+
+export type SendLoginOtpMutation = { __typename?: 'Mutation', sendLoginOtp: boolean };
+
+export type LoginWithOtpMutationVariables = Exact<{
+  input: LoginWithOtpInput;
+}>;
+
+
+export type LoginWithOtpMutation = { __typename?: 'Mutation', loginWithOtp: { __typename?: 'AuthResponse', accessToken: string } };
+
 export type RefreshTokensMutationVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -2102,6 +2356,8 @@ export type CurrentUserQuery = { __typename?: 'Query', currentUser: { __typename
 
 
 export const LoginDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"Login"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"LoginInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"login"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"accessToken"}}]}}]}}]} as unknown as DocumentNode<LoginMutation, LoginMutationVariables>;
+export const SendLoginOtpDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SendLoginOtp"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SendLoginOtpInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sendLoginOtp"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<SendLoginOtpMutation, SendLoginOtpMutationVariables>;
+export const LoginWithOtpDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"LoginWithOtp"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"LoginWithOtpInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"loginWithOtp"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"accessToken"}}]}}]}}]} as unknown as DocumentNode<LoginWithOtpMutation, LoginWithOtpMutationVariables>;
 export const RefreshTokensDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RefreshTokens"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"refreshTokens"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"accessToken"}}]}}]}}]} as unknown as DocumentNode<RefreshTokensMutation, RefreshTokensMutationVariables>;
 export const LogoutDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"Logout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"logout"}}]}}]} as unknown as DocumentNode<LogoutMutation, LogoutMutationVariables>;
 export const CurrentUserDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"CurrentUser"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"currentUser"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sub"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"systemRole"}},{"kind":"Field","name":{"kind":"Name","value":"orgId"}}]}}]}}]} as unknown as DocumentNode<CurrentUserQuery, CurrentUserQueryVariables>;
