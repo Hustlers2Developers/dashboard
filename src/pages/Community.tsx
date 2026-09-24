@@ -416,7 +416,11 @@ const MemberDirectory = ({ orgId }: { orgId: string }) => {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((member) => {
-              const details = member.details;
+              // Members with isPublic === false only expose name + email in
+              // Community, per the visibility toggle on their Profile page —
+              // bio, title, and social links stay hidden from other members.
+              const isPublic = member.details?.isPublic !== false;
+              const details = isPublic ? member.details : undefined;
               return (
                 <div key={member.id} className="premium-card flex flex-col gap-3 p-5">
                   <div className="flex items-center gap-3">
@@ -469,6 +473,9 @@ const MemberDirectory = ({ orgId }: { orgId: string }) => {
                     </div>
                   )}
 
+                  {!isPublic && (
+                    <p className="text-[11px] text-muted-foreground/70">This member's profile is private.</p>
+                  )}
                 </div>
               );
             })}

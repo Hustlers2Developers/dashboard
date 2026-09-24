@@ -633,6 +633,7 @@ const Memberships = () => {
                       Couldn't load member names/emails — showing IDs instead. {usersError.message}
                     </div>
                   )}
+                  <div className="overflow-x-auto">
                   <Table>
                   <TableHeader>
                     <TableRow>
@@ -708,6 +709,7 @@ const Memberships = () => {
                     })}
                   </TableBody>
                   </Table>
+                  </div>
                 </>
               )}
             </CardContent>

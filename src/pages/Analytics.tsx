@@ -177,6 +177,7 @@ const Analytics = () => {
                 services to start collecting data.
               </p>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -216,6 +217,7 @@ const Analytics = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

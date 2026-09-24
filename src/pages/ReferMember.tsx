@@ -114,7 +114,7 @@ const ReferMember = () => {
                 Referral link for <span className="font-medium text-foreground">{lastLink.email}</span>
               </p>
               <div className="flex items-center gap-2">
-                <Input value={lastLink.link} readOnly className="text-xs" />
+                <Input value={lastLink.link} readOnly className="sm:text-xs" />
                 <Button type="button" variant="outline" size="icon" onClick={copyLink} className="shrink-0">
                   {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                 </Button>

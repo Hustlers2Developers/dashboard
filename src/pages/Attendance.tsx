@@ -389,19 +389,19 @@ const Attendance = () => {
                   type="date"
                   value={orgStartDate}
                   onChange={(e) => setOrgStartDate(e.target.value)}
-                  className="h-8 w-36 text-xs"
+                  className="h-9 w-[9.5rem] sm:h-8 sm:w-36"
                 />
                 <span className="text-muted-foreground text-xs">to</span>
                 <Input
                   type="date"
                   value={orgEndDate}
                   onChange={(e) => setOrgEndDate(e.target.value)}
-                  className="h-8 w-36 text-xs"
+                  className="h-9 w-[9.5rem] sm:h-8 sm:w-36"
                 />
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 text-xs"
+                  className="h-9 text-xs sm:h-8"
                   onClick={() => refetchOrgAttendance()}
                 >
                   Apply
@@ -492,7 +492,7 @@ const Attendance = () => {
                   type="date"
                   value={bulkDate}
                   onChange={(e) => setBulkDate(e.target.value)}
-                  className="h-8 w-40 text-xs"
+                  className="h-9 w-[10.5rem] sm:h-8 sm:w-40"
                 />
               </div>
             </div>
@@ -525,7 +525,7 @@ const Attendance = () => {
                               onClick={() =>
                                 setBulkStatus((prev) => ({ ...prev, [uid]: s }))
                               }
-                              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                              className={`min-h-9 px-3.5 py-2 rounded text-xs font-medium transition-colors ${
                                 selected === s
                                   ? s === "PRESENT"
                                     ? "bg-emerald-500 text-white"

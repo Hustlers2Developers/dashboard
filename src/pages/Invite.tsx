@@ -210,7 +210,7 @@ const Invite = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
           {/* All invites list */}
           <Card className="border-border">
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
@@ -275,7 +275,7 @@ const Invite = () => {
                           </div>
                           <button
                             onClick={() => copyToClipboard(invite.email)}
-                            className="ml-auto p-1.5 hover:bg-muted rounded transition-colors"
+                            className="ml-auto flex h-9 w-9 items-center justify-center hover:bg-muted rounded transition-colors"
                             title="Copy email"
                           >
                             {copiedLink === invite.email ? (
@@ -288,7 +288,7 @@ const Invite = () => {
                             <button
                               onClick={() => handleResend(invite)}
                               disabled={resending}
-                              className="p-1.5 hover:bg-muted rounded transition-colors disabled:opacity-50"
+                              className="flex h-9 w-9 items-center justify-center hover:bg-muted rounded transition-colors disabled:opacity-50"
                               title="Resend invite (generates a new link)"
                             >
                               <RotateCw className="h-3.5 w-3.5 text-muted-foreground" />
@@ -297,7 +297,7 @@ const Invite = () => {
                           {status !== "accepted" && (
                             <button
                               onClick={() => setDeleteTarget(invite)}
-                              className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
+                              className="flex h-9 w-9 items-center justify-center hover:bg-destructive/10 rounded transition-colors"
                               title="Delete invite"
                             >
                               <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
@@ -323,7 +323,7 @@ const Invite = () => {
                             </a>
                             <button
                               onClick={() => copyToClipboard(buildInviteLink(invite.token, invite.email))}
-                              className="shrink-0 p-1.5 hover:bg-muted rounded transition-colors"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-muted rounded transition-colors"
                               title="Copy link"
                             >
                               {copiedLink === buildInviteLink(invite.token, invite.email) ? (

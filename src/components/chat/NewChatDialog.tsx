@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@apollo/client/react";
 import { Users, MessageCirclePlus, Clock } from "lucide-react";
-import { ALL_PLATFORM_USERS } from "@/graphql/mutations/users";
+import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCreateConversation } from "@/hooks/use-chat";
-import { initials, colorFor } from "@/components/AuthorTag";
+import { useCreateConversation, useBlockedUsers } from "@/hooks/use-chat";
+import { initials, colorFor, CommunityUser } from "@/components/AuthorTag";
 import {
   Dialog,
   DialogContent,
@@ -21,13 +21,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LoadingButton } from "@/components/LoadingButton";
 import { toast } from "sonner";
 
-type PlatformUser = {
-  id: string;
-  email: string;
-  name?: string | null;
-  systemRole: string;
-};
-
 interface NewChatDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,20 +29,39 @@ interface NewChatDialogProps {
 
 export function NewChatDialog({ open, onOpenChange, onCreated }: NewChatDialogProps) {
   const currentUserId = useAuthStore((s) => s.user?.sub);
+  const orgId = useAuthStore((s) => s.user?.orgId);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [groupTitle, setGroupTitle] = useState("");
   const [tempExpiryHours, setTempExpiryHours] = useState("24");
   const [creating, setCreating] = useState(false);
 
-  const { data, loading } = useQuery<{ allPlatformUsers: PlatformUser[] }>(ALL_PLATFORM_USERS, {
-    variables: { search: search || undefined },
-    skip: !open,
+  const { data, loading } = useQuery<{ getAllUsers: CommunityUser[] }>(GET_ALL_USERS, {
+    variables: { orgId },
+    skip: !open || !orgId,
+    fetchPolicy: "cache-first",
   });
 
   const { createDm, createGroup } = useCreateConversation();
+  const { blockedIds } = useBlockedUsers();
 
-  const candidates = (data?.allPlatformUsers ?? []).filter((u) => u.id !== currentUserId);
+  // Only community members with a public profile can be messaged here —
+  // matches the visibility toggle on the Profile page and how Community's
+  // own member directory scopes who's listed. Users I've blocked are left
+  // out too — messaging them would just fail server-side (messages_enforce_dm_block).
+  const candidates = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const deduped = new Map<string, CommunityUser>();
+    for (const u of data?.getAllUsers ?? []) {
+      if (u.id === currentUserId) continue;
+      if (u.details?.isPublic === false) continue;
+      if (blockedIds.has(u.id)) continue;
+      deduped.set(u.id, u);
+    }
+    const all = Array.from(deduped.values());
+    if (!q) return all;
+    return all.filter((u) => u.name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  }, [data, currentUserId, search, blockedIds]);
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

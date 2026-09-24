@@ -107,7 +107,9 @@ export function NotificationBell() {
     return map;
   }, [usersData]);
 
-  const unreadChatConvos = chatConversations.filter((c) => c.unreadCount > 0);
+  // Muted conversations don't surface here either — same "muting means no
+  // badge/alert" rule as the sidebar's useChatUnreadCount().
+  const unreadChatConvos = chatConversations.filter((c) => c.unreadCount > 0 && !c.myMembership?.muted_at);
 
   const feed: FeedEntry[] = useMemo(() => {
     const graphqlNotifications = listData?.myNotifications.data ?? [];

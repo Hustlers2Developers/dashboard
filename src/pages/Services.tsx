@@ -158,7 +158,7 @@ const ServiceAnalyticsDialog = ({
           <p className="py-6 text-center text-sm text-muted-foreground">No analytics data yet.</p>
         ) : (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <div className="premium-card p-3 text-center">
                 <Eye className="mx-auto mb-1 h-4 w-4 text-accent" />
                 <p className="text-lg font-bold text-foreground">{fmtNum(analytics.pageviews)}</p>
