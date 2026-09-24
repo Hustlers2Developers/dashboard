@@ -100,30 +100,52 @@ function linkify(text: string) {
 type PlatformUserDetails = { id: string; email: string; name?: string | null; details?: { profilePicUrl?: string | null } | null };
 
 function useUserDirectory() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const orgId = useAuthStore((s) => s.user?.orgId);
-  const { data } = useQuery<{ getAllUsers: PlatformUserDetails[] }>(GET_ALL_USERS, {
+  const { data, loading, error } = useQuery<{ getAllUsers: PlatformUserDetails[] }>(GET_ALL_USERS, {
     variables: { orgId },
-    skip: !isAuthenticated,
+    // Was `skip: !isAuthenticated` — isAuthenticated can flip true before
+    // user.orgId is populated in the store (AuthProvider/ProtectedRoute set
+    // these independently), so the query could fire with orgId: undefined.
+    // resolveOrgId() on the backend then falls through to a BadRequestException
+    // ("Organization context missing in token") for non-SUPER_ADMIN callers,
+    // since the token payload itself IS present but the query variable isn't
+    // what the backend expects to correlate — surfaced here as [Chat] getAllUsers
+    // failed. Gating on orgId directly (like NotificationBell.tsx already does)
+    // means the query only ever fires once it has a real value to send.
+    skip: !orgId,
     fetchPolicy: "cache-and-network",
   });
-  return useMemo(() => {
-    const map = new Map<string, PlatformUserDetails>();
-    for (const u of data?.getAllUsers ?? []) map.set(u.id, u);
-    return map;
+  const map = useMemo(() => {
+    const m = new Map<string, PlatformUserDetails>();
+    for (const u of data?.getAllUsers ?? []) m.set(u.id, u);
+    return m;
   }, [data]);
+  useEffect(() => {
+    if (error) {
+      // Surfaced so a role where getAllUsers silently fails/returns partial
+      // data (e.g. viewer/member accounts) is visible instead of just
+      // showing "Direct message" everywhere with no explanation.
+      console.error("[Chat] getAllUsers failed — conversation names won't resolve:", error);
+      toast.error("Couldn't load the member directory — names may not show correctly.");
+    }
+  }, [error]);
+  // Only "loading" on the very first fetch (no cached data yet) — once we
+  // have a directory, a cache-and-network refetch shouldn't blank out names.
+  return { directory: map, directoryLoading: loading && !data, directoryError: error };
 }
 
 function conversationTitle(
   convo: ConversationSummary,
   myUserId: string | undefined,
   directory: Map<string, PlatformUserDetails>,
+  directoryLoading?: boolean,
 ): string {
   if (convo.title) return convo.title;
   if (convo.kind === "dm") {
     const otherId = convo.members.find((m) => m.app_user_id !== myUserId)?.app_user_id;
     const other = otherId ? directory.get(otherId) : undefined;
-    return other?.name || other?.email || "Direct message";
+    if (other?.name || other?.email) return other.name || other.email;
+    return directoryLoading ? "Loading…" : "Direct message";
   }
   return "Group chat";
 }
@@ -133,6 +155,7 @@ function ConversationListItem({
   active,
   myUserId,
   directory,
+  directoryLoading,
   onlineIds,
   index,
   onClick,
@@ -146,6 +169,7 @@ function ConversationListItem({
   active: boolean;
   myUserId: string | undefined;
   directory: Map<string, PlatformUserDetails>;
+  directoryLoading?: boolean;
   onlineIds: Set<string>;
   index: number;
   onClick: () => void;
@@ -155,7 +179,7 @@ function ConversationListItem({
   onPinToggle: () => void;
   onMuteToggle: () => void;
 }) {
-  const title = conversationTitle(convo, myUserId, directory);
+  const title = conversationTitle(convo, myUserId, directory, directoryLoading);
   const otherId =
     convo.kind === "dm" ? convo.members.find((m) => m.app_user_id !== myUserId)?.app_user_id : undefined;
   const other = otherId ? directory.get(otherId) : undefined;
@@ -289,7 +313,10 @@ function ConversationListItem({
             Delete for me
           </DropdownMenuItem>
           {onDelete && (
-            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+            >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete for everyone
             </DropdownMenuItem>
@@ -325,12 +352,12 @@ function MessageBubble({
   onDelete?: () => void;
 }) {
   return (
-    <div className={cn("group flex animate-fade-slide-up items-end gap-1.5", mine ? "flex-row-reverse" : "flex-row")}>
-      <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
+    <div className={cn("group flex w-full animate-fade-slide-up items-end gap-1.5", mine ? "flex-row-reverse" : "flex-row")}>
+      <div className={cn("flex min-w-0 max-w-[75%] flex-col", mine ? "items-end" : "items-start")}>
         {!mine && senderName && <span className="mb-0.5 px-1 text-[11px] font-medium text-muted-foreground">{senderName}</span>}
         <div
           className={cn(
-            "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm",
+            "min-w-0 max-w-full rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm",
             deleted
               ? "rounded-bl-sm border border-dashed border-border bg-transparent italic text-muted-foreground"
               : mine
@@ -338,7 +365,7 @@ function MessageBubble({
                 : "rounded-bl-sm border border-border bg-card text-foreground",
           )}
         >
-          <p className="whitespace-pre-wrap break-words">{deleted ? "This message was deleted" : linkify(body)}</p>
+          <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{deleted ? "This message was deleted" : linkify(body)}</p>
         </div>
         <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-muted-foreground/70">
           {timeAgo(createdAt)}
@@ -374,7 +401,7 @@ function TypingIndicator({ label }: { label?: string }) {
 
 export default function Chat() {
   const myUserId = useAuthStore((s) => s.user?.sub);
-  const directory = useUserDirectory();
+  const { directory, directoryLoading } = useUserDirectory();
   const onlineIds = useOnlinePresence();
   const isMobile = useIsMobile();
   const { conversations, loading: loadingConversations, refresh } = useConversations();
@@ -680,6 +707,7 @@ export default function Chat() {
                     active={c.id === activeId}
                     myUserId={myUserId}
                     directory={directory}
+                    directoryLoading={directoryLoading}
                     onlineIds={onlineIds}
                     index={index}
                     onClick={() => handleSelectConversation(c.id)}
@@ -717,7 +745,7 @@ export default function Chat() {
                 </Button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold leading-tight text-foreground">
-                    {conversationTitle(activeConvo, myUserId, directory)}
+                    {conversationTitle(activeConvo, myUserId, directory, directoryLoading)}
                   </p>
                   {activeConvo.kind === "dm" && (
                     <p className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -854,7 +882,7 @@ export default function Chat() {
                     {activeConvo.created_by === myUserId && (
                       <DropdownMenuItem
                         onClick={() => setPendingDelete(activeConvo)}
-                        className="text-destructive focus:text-destructive"
+                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete for everyone

@@ -634,9 +634,14 @@ export function useOnlinePresence(): Set<string> {
 
       channel
         .on('presence', { event: 'sync' }, syncState)
-        .subscribe(async (status) => {
+        .subscribe(async (status, err) => {
           if (status === 'SUBSCRIBED') {
-            await channel?.track({ online_at: new Date().toISOString() });
+            const trackResult = await channel?.track({ online_at: new Date().toISOString() });
+            if (trackResult !== 'ok') {
+              console.error('[useOnlinePresence] track() did not confirm — presence may not broadcast:', trackResult);
+            }
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.error('[useOnlinePresence] presence channel failed to subscribe:', status, err);
           }
         });
     })();
