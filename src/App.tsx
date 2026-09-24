@@ -29,6 +29,7 @@ import Users from "./pages/Users";
 import Profile from "./pages/Profile";
 import Community from "./pages/Community";
 import CommunityPostDetail from "./pages/CommunityPostDetail";
+import Chat from "./pages/Chat";
 import ReferMember from "./pages/ReferMember";
 import Journey from "./pages/Journey";
 import Services from "./pages/Services";
@@ -191,6 +192,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ReferMember />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Chat />
                 </ProtectedRoute>
               }
             />

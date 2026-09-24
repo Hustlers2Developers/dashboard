@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth-store";
 import { useIsOrgAdmin } from "@/hooks/use-org-admin";
+import { useChatUnreadCount } from "@/hooks/use-chat";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -27,6 +28,7 @@ import {
   Flame,
   ShieldCheck,
   UserPlus,
+  MessagesSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +78,7 @@ const getNavItems = (userRole?: string, isOrgAdmin?: boolean) => {
       : []),
     ...(!isSuperAdmin ? [{ to: "/streak", label: "Streak", icon: Flame }] : []),
     { to: "/journey", label: "Journey", icon: Compass },
+    { to: "/chat", label: "Chat", icon: MessagesSquare },
     { to: "/community", label: "Community", icon: Users2 },
     { to: "/referral", label: "Referral", icon: UserPlus },
     { to: "/profile", label: "My Profile", icon: UserCircle },
@@ -105,6 +108,7 @@ export const DashboardLayout = ({
   // page — not a per-navigation cost.
   const { isOrgAdmin } = useIsOrgAdmin(user?.orgId);
   const navItems = getNavItems(user?.systemRole, isOrgAdmin);
+  const chatUnreadCount = useChatUnreadCount();
 
   const handleLogout = async () => {
     await logout();
@@ -173,6 +177,14 @@ export const DashboardLayout = ({
               >
                 <item.icon className="h-5 w-5 shrink-0" />
                 {item.label}
+                {item.to === "/chat" && chatUnreadCount > 0 && !isActive && (
+                  <Badge
+                    variant="destructive"
+                    className="ml-auto h-5 min-w-5 shrink-0 justify-center rounded-full px-1.5 text-[10px]"
+                  >
+                    {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+                  </Badge>
+                )}
                 {isActive && <ChevronRight className="ml-auto h-4 w-4 shrink-0" />}
               </Link>
             );

@@ -1,12 +1,16 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@apollo/client/react";
-import { Bell, PartyPopper, Megaphone, Cake, Award, MessageSquare } from "lucide-react";
+import { Bell, PartyPopper, Megaphone, Cake, Award, MessageSquare, MessagesSquare } from "lucide-react";
 import {
   MY_NOTIFICATIONS,
   MY_UNREAD_NOTIFICATION_COUNT,
   MARK_NOTIFICATION_READ,
   MARK_ALL_NOTIFICATIONS_READ,
 } from "@/graphql/mutations/notifications";
+import { GET_ALL_USERS } from "@/graphql/mutations/users";
+import { useConversations, ConversationSummary } from "@/hooks/use-chat";
+import { useAuthStore } from "@/stores/auth-store";
 import { timeAgo } from "@/lib/time-ago";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +30,24 @@ type Notification = {
   createdAt: string;
 };
 
+// Client-side merge target: an unread chat conversation rendered as a bell
+// entry. Chat lives entirely in Supabase (see backend's chat.service.ts /
+// 20260924_chat_schema.sql) — it's deliberately never written into the
+// GraphQL myNotifications table, so this stays a display-time merge instead
+// of routing chat traffic through the backend.
+type ChatEntry = {
+  id: string;
+  kind: "chat";
+  conversationId: string;
+  title: string;
+  message: string;
+  createdAt: string;
+};
+
+type FeedEntry = (Notification & { kind: "graphql" }) | ChatEntry;
+
+type PlatformUserDetails = { id: string; email: string; name?: string | null };
+
 const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   COMMUNITY_REPLY: MessageSquare,
   ANNOUNCEMENT: Megaphone,
@@ -36,8 +58,24 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
 
 const POLL_INTERVAL_MS = 30_000;
 
+function chatConversationTitle(
+  convo: ConversationSummary,
+  myUserId: string | undefined,
+  directory: Map<string, PlatformUserDetails>,
+): string {
+  if (convo.title) return convo.title;
+  if (convo.kind === "dm") {
+    const otherId = convo.members.find((m) => m.app_user_id !== myUserId)?.app_user_id;
+    const other = otherId ? directory.get(otherId) : undefined;
+    return other?.name || other?.email || "Direct message";
+  }
+  return "Group chat";
+}
+
 export function NotificationBell() {
   const navigate = useNavigate();
+  const myUserId = useAuthStore((s) => s.user?.sub);
+  const orgId = useAuthStore((s) => s.user?.orgId);
 
   const { data: countData } = useQuery<{ myUnreadNotificationCount: number }>(
     MY_UNREAD_NOTIFICATION_COUNT,
@@ -56,21 +94,56 @@ export function NotificationBell() {
   const [markRead] = useMutation(MARK_NOTIFICATION_READ);
   const [markAllRead] = useMutation(MARK_ALL_NOTIFICATIONS_READ);
 
-  const unreadCount = countData?.myUnreadNotificationCount ?? 0;
-  const notifications = listData?.myNotifications.data ?? [];
+  // Chat conversations come straight from Supabase Realtime (see use-chat.ts) —
+  // updates land here as soon as a message arrives, no 30s poll wait.
+  const { conversations: chatConversations } = useConversations();
+  const { data: usersData } = useQuery<{ getAllUsers: PlatformUserDetails[] }>(GET_ALL_USERS, {
+    variables: { orgId },
+    skip: !orgId,
+  });
+  const userDirectory = useMemo(() => {
+    const map = new Map<string, PlatformUserDetails>();
+    for (const u of usersData?.getAllUsers ?? []) map.set(u.id, u);
+    return map;
+  }, [usersData]);
 
-  const handleOpenNotification = async (n: Notification) => {
-    if (!n.isRead) {
+  const unreadChatConvos = chatConversations.filter((c) => c.unreadCount > 0);
+
+  const feed: FeedEntry[] = useMemo(() => {
+    const graphqlNotifications = listData?.myNotifications.data ?? [];
+    const chatEntries: ChatEntry[] = unreadChatConvos.map((c) => ({
+      id: `chat-${c.id}`,
+      kind: "chat",
+      conversationId: c.id,
+      title: chatConversationTitle(c, myUserId, userDirectory),
+      message: c.lastMessage?.body ?? "New message",
+      createdAt: c.lastMessage?.created_at ?? c.created_at,
+    }));
+    const merged: FeedEntry[] = [
+      ...graphqlNotifications.map((n) => ({ ...n, kind: "graphql" as const })),
+      ...chatEntries,
+    ];
+    return merged.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [listData, unreadChatConvos, myUserId, userDirectory]);
+
+  const unreadCount = (countData?.myUnreadNotificationCount ?? 0) + unreadChatConvos.length;
+
+  const handleOpenNotification = async (entry: FeedEntry) => {
+    if (entry.kind === "chat") {
+      navigate(`/chat?c=${entry.conversationId}`);
+      return;
+    }
+    if (!entry.isRead) {
       try {
-        await markRead({ variables: { id: n.id } });
+        await markRead({ variables: { id: entry.id } });
         await refetchList();
       } catch {
         // best-effort — clicking through still works even if the read-mark fails
       }
     }
-    if (n.type === "COMMUNITY_REPLY" && n.metadata) {
+    if (entry.type === "COMMUNITY_REPLY" && entry.metadata) {
       try {
-        const parsed = JSON.parse(n.metadata) as { postId?: string };
+        const parsed = JSON.parse(entry.metadata) as { postId?: string };
         if (parsed.postId) navigate(`/community/posts/${parsed.postId}`);
       } catch {
         // metadata isn't parseable JSON — nothing to deep-link to
@@ -85,6 +158,9 @@ export function NotificationBell() {
     } catch {
       // best-effort
     }
+    // Chat unread state lives in Supabase (conversation_members.last_read_at),
+    // not the GraphQL notifications table — "mark all read" only clears the
+    // GraphQL side; chat threads still clear individually when opened.
   };
 
   return (
@@ -93,50 +169,60 @@ export function NotificationBell() {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -right-1 -top-1 flex h-4 min-w-4 animate-pop-in items-center justify-center rounded-full px-1 text-[10px] shadow-sm"
-            >
+            <Badge className="absolute -right-1 -top-1 flex h-4 min-w-4 animate-pop-in items-center justify-center rounded-full border-0 bg-primary px-1 text-[10px] text-primary-foreground shadow-sm">
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+      <PopoverContent align="end" className="w-80 overflow-hidden rounded-2xl border-border p-0 shadow-lg">
+        <div className="flex items-center justify-between border-b border-border bg-gradient-to-br from-primary/5 to-transparent px-4 py-3">
           <span className="text-sm font-semibold text-foreground">Notifications</span>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleMarkAllRead}>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-primary hover:text-primary" onClick={handleMarkAllRead}>
               Mark all read
             </Button>
           )}
         </div>
         <ScrollArea className="h-96">
-          {notifications.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">You're all caught up.</p>
+          {feed.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 p-8 text-center">
+              <div className="glow-primary flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bell className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">You're all caught up.</p>
+            </div>
           ) : (
-            <div className="divide-y divide-border">
-              {notifications.map((n, idx) => {
-                const Icon = TYPE_ICON[n.type] ?? Bell;
+            <div className="divide-y divide-border/60">
+              {feed.map((entry, idx) => {
+                const isUnread = entry.kind === "chat" || !entry.isRead;
+                const Icon = entry.kind === "chat" ? MessagesSquare : (TYPE_ICON[entry.type] ?? Bell);
                 return (
                   <button
-                    key={n.id}
-                    onClick={() => void handleOpenNotification(n)}
+                    key={entry.id}
+                    onClick={() => void handleOpenNotification(entry)}
                     style={{ animationDelay: `${Math.min(idx, 10) * 30}ms` }}
                     className={cn(
-                      "flex w-full animate-fade-slide-up items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary",
-                      !n.isRead && "bg-primary/5",
+                      "flex w-full animate-fade-slide-up items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/70",
+                      isUnread && "bg-primary/5",
                     )}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-accent/20 transition-shadow",
+                        isUnread && "glow-primary",
+                      )}
+                    >
                       <Icon className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium leading-snug text-foreground">{n.title}</p>
-                      <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{n.message}</p>
-                      <p className="mt-1 text-[11px] font-medium text-muted-foreground/80">{timeAgo(n.createdAt)}</p>
+                      <p className={cn("truncate text-sm leading-snug text-foreground", isUnread ? "font-semibold" : "font-medium")}>
+                        {entry.title}
+                      </p>
+                      <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{entry.message}</p>
+                      <p className="mt-1 text-[11px] font-medium text-muted-foreground/80">{timeAgo(entry.createdAt)}</p>
                     </div>
-                    {!n.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                    {isUnread && <span className="mt-1.5 h-2 w-2 shrink-0 animate-pop-in rounded-full gold-gradient" />}
                   </button>
                 );
               })}
