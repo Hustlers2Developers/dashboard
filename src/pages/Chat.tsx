@@ -12,6 +12,7 @@ import {
   CheckCheck,
   ArrowLeft,
   MoreVertical,
+  Copy,
   Archive,
   ArchiveRestore,
   Trash2,
@@ -351,13 +352,22 @@ function MessageBubble({
   deleted: boolean;
   onDelete?: () => void;
 }) {
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(body);
+      toast.success("Copied");
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  };
+
   return (
     <div className={cn("group flex w-full animate-fade-slide-up items-end gap-1.5", mine ? "flex-row-reverse" : "flex-row")}>
       <div className={cn("flex min-w-0 max-w-[75%] flex-col", mine ? "items-end" : "items-start")}>
         {!mine && senderName && <span className="mb-0.5 px-1 text-[11px] font-medium text-muted-foreground">{senderName}</span>}
         <div
           className={cn(
-            "min-w-0 max-w-full rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm",
+            "min-w-0 max-w-full rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm transition-transform duration-150 group-hover:scale-[1.01]",
             deleted
               ? "rounded-bl-sm border border-dashed border-border bg-transparent italic text-muted-foreground"
               : mine
@@ -372,15 +382,33 @@ function MessageBubble({
           {mine && receipt && !deleted && <MessageReceipt status={receipt} />}
         </span>
       </div>
-      {mine && !deleted && onDelete && (
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 shrink-0 self-center opacity-0 transition-opacity group-hover:opacity-100"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-        </Button>
+      {!deleted && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100 data-[state=open]:opacity-100 hover:bg-secondary"
+            >
+              <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align={mine ? "end" : "start"} className="animate-pop-in">
+            <DropdownMenuItem onClick={() => void handleCopy()}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copy
+            </DropdownMenuItem>
+            {mine && onDelete && (
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );

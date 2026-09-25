@@ -410,9 +410,17 @@ export function useCreateConversation() {
       .single();
     if (error) throw error;
 
+    // Insert both sides as members — without this, the creator never gets a
+    // conversation_members row, so useConversations() (which lists only
+    // conversations where I have a membership row) would never show a DM I
+    // just started, and the "other member" lookups used for title/admin
+    // labels would resolve against an incomplete member list.
     const { error: memberErr } = await supabase
       .from('conversation_members')
-      .insert({ conversation_id: created.id, app_user_id: otherAppUserId });
+      .insert([
+        { conversation_id: created.id, app_user_id: myAppUserId },
+        { conversation_id: created.id, app_user_id: otherAppUserId },
+      ]);
     if (memberErr) throw memberErr;
 
     return created.id;
@@ -436,13 +444,14 @@ export function useCreateConversation() {
         .single();
       if (error) throw error;
 
+      // Insert the creator too — same reasoning as createDm() above: without
+      // a membership row, the creator's own conversation list and admin
+      // label lookups silently miss this group.
       const others = memberAppUserIds.filter((id) => id !== myAppUserId);
-      if (others.length > 0) {
-        const { error: memberErr } = await supabase
-          .from('conversation_members')
-          .insert(others.map((app_user_id) => ({ conversation_id: created.id, app_user_id })));
-        if (memberErr) throw memberErr;
-      }
+      const { error: memberErr } = await supabase
+        .from('conversation_members')
+        .insert([myAppUserId, ...others].map((app_user_id) => ({ conversation_id: created.id, app_user_id })));
+      if (memberErr) throw memberErr;
 
       return created.id;
     },
