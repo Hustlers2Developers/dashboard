@@ -398,6 +398,15 @@ export function useCreateConversation() {
           .eq('conversation_id', convo.id);
         const ids = new Set((members ?? []).map((m) => m.app_user_id));
         if (ids.size === 2 && ids.has(otherAppUserId) && ids.has(myAppUserId)) {
+          // I may have previously "deleted for me" (hidden) this DM — starting
+          // it again from the New Chat dialog should bring it back into my
+          // list, not just silently reuse an invisible conversation.
+          const { error: unhideErr } = await supabase
+            .from('conversation_members')
+            .update({ hidden_at: null })
+            .eq('conversation_id', convo.id)
+            .eq('app_user_id', myAppUserId);
+          if (unhideErr) throw unhideErr;
           return convo.id;
         }
       }
