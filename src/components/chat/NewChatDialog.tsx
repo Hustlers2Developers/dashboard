@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@apollo/client/react";
-import { Users, MessageCirclePlus, Clock } from "lucide-react";
+import { Users, MessageCirclePlus, Clock, Lock, Check, Hourglass } from "lucide-react";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCreateConversation, useBlockedUsers } from "@/hooks/use-chat";
+import { useCreateConversation, useBlockedUsers, useMessageRequests } from "@/hooks/use-chat";
 import { initials, colorFor, CommunityUser } from "@/components/AuthorTag";
 import {
   Dialog,
@@ -44,12 +44,14 @@ export function NewChatDialog({ open, onOpenChange, onCreated }: NewChatDialogPr
 
   const { createDm, createGroup } = useCreateConversation();
   const { blockedIds } = useBlockedUsers();
+  const { sendRequest, connectionWith } = useMessageRequests();
 
-  // Any org member can be messaged here regardless of their Community
-  // profile visibility — chat is org-wide, not gated by the public/private
-  // profile toggle (that toggle only controls the Community directory).
-  // Users I've blocked are still left out — messaging them would just fail
-  // server-side (messages_enforce_dm_block).
+  // Any org member can be found here regardless of their Community profile
+  // visibility, but a private (isPublic: false) member can't be DM'd
+  // outright — starting a chat with them sends a message_requests row
+  // instead, and the conversation only opens once they accept it (see
+  // handleStartDm below). Users I've blocked are still left out entirely —
+  // messaging them would just fail server-side (messages_enforce_dm_block).
   const candidates = useMemo(() => {
     const q = search.trim().toLowerCase();
     const deduped = new Map<string, CommunityUser>();
@@ -74,10 +76,34 @@ export function NewChatDialog({ open, onOpenChange, onCreated }: NewChatDialogPr
     setTempExpiryHours("24");
   };
 
-  const handleStartDm = async (userId: string) => {
+  const handleStartDm = async (user: CommunityUser) => {
+    const isPrivate = user.details?.isPublic === false;
+    const existingConnection = connectionWith(user.id);
+
+    // A private member can't be DM'd outright unless we already have an
+    // accepted (or still-pending, to avoid spamming duplicate requests)
+    // connection with them.
+    if (isPrivate && !existingConnection) {
+      setCreating(true);
+      try {
+        await sendRequest(user.id);
+        toast.success(`Message request sent to ${user.name || user.email}`);
+      } catch {
+        toast.error("Couldn't send message request. Try again.");
+      } finally {
+        setCreating(false);
+      }
+      return;
+    }
+
+    if (isPrivate && existingConnection?.status === "pending") {
+      toast.info("Your message request is still pending — they haven't accepted it yet.");
+      return;
+    }
+
     setCreating(true);
     try {
-      const id = await createDm(userId);
+      const id = await createDm(user.id);
       onCreated(id);
       onOpenChange(false);
       reset();
@@ -150,25 +176,57 @@ export function NewChatDialog({ open, onOpenChange, onCreated }: NewChatDialogPr
                 <p className="p-4 text-center text-sm text-muted-foreground">No members found</p>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {candidates.map((u, index) => (
-                    <button
-                      key={u.id}
-                      disabled={creating}
-                      style={{ animationDelay: `${Math.min(index, 12) * 20}ms` }}
-                      onClick={() => void handleStartDm(u.id)}
-                      className="flex w-full animate-fade-slide-up items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-secondary/70 disabled:opacity-50"
-                    >
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${colorFor(u.id)}`}
+                  {candidates.map((u, index) => {
+                    const isPrivate = u.details?.isPublic === false;
+                    const connection = connectionWith(u.id);
+                    const isPending = isPrivate && connection?.status === "pending";
+                    const isAccepted = connection?.status === "accepted";
+                    return (
+                      <button
+                        key={u.id}
+                        disabled={creating}
+                        style={{ animationDelay: `${Math.min(index, 12) * 20}ms` }}
+                        onClick={() => void handleStartDm(u)}
+                        className="flex w-full cursor-pointer animate-fade-slide-up items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {initials(u.name, u.email)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{u.name || u.email}</p>
-                        <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                      </div>
-                    </button>
-                  ))}
+                        <div
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${colorFor(u.id)}`}
+                        >
+                          {initials(u.name, u.email)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+                            {u.name || u.email}
+                            {isPrivate && !isAccepted && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {isPending ? "Request pending" : u.email}
+                          </p>
+                        </div>
+                        {isPrivate && !isAccepted && (
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {isPending ? (
+                              <>
+                                <Hourglass className="h-3 w-3" />
+                                Pending
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="h-3 w-3" />
+                                Request
+                              </>
+                            )}
+                          </span>
+                        )}
+                        {isAccepted && (
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                            <Check className="h-3 w-3" />
+                            Connected
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </ScrollArea>

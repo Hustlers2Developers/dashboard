@@ -22,8 +22,12 @@ const badgeVariants = cva(
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
-}
+// forwardRef so Badge can be used as a Radix `asChild` trigger (e.g. inside
+// PopoverTrigger) — without it, Radix can't get a ref to the underlying
+// element, which silently breaks the trigger's click-to-open wiring.
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(({ className, variant, ...props }, ref) => {
+  return <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
+});
+Badge.displayName = "Badge";
 
 export { Badge, badgeVariants };

@@ -27,6 +27,9 @@ import {
   Smile,
   Reply,
   X,
+  WifiOff,
+  RotateCw,
+  Inbox,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuthStore } from "@/stores/auth-store";
@@ -37,11 +40,13 @@ import {
   useOnlinePresence,
   useConversationActions,
   useBlockedUsers,
+  useMessageRequests,
   ConversationSummary,
   MessageRow,
 } from "@/hooks/use-chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NewChatDialog } from "@/components/chat/NewChatDialog";
+import { MessageRequestsDialog } from "@/components/chat/MessageRequestsDialog";
 import { initials, colorFor } from "@/components/AuthorTag";
 import { timeAgo } from "@/lib/time-ago";
 import { Button } from "@/components/ui/button";
@@ -402,7 +407,7 @@ function MessageBubble({
             deleted
               ? "border border-dashed border-border bg-transparent italic text-muted-foreground after:hidden"
               : mine
-                ? "gold-gradient text-primary-foreground shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.45)] after:gold-gradient group-hover:shadow-[0_4px_16px_-2px_hsl(var(--primary)/0.55)]"
+                ? "bg-primary/15 text-foreground shadow-sm after:bg-primary/15 group-hover:shadow-md dark:bg-primary/20 dark:after:bg-primary/20"
                 : "border border-border bg-card text-foreground shadow-sm after:border-b after:border-l after:border-border after:bg-card group-hover:shadow-md",
           )}
         >
@@ -410,12 +415,7 @@ function MessageBubble({
             // Floated so short/long text wraps around the timestamp like a
             // real Telegram bubble, instead of the time sitting on its own
             // line or overlapping the last word.
-            <span
-              className={cn(
-                "float-right ml-2 mt-1 flex items-center gap-0.5 whitespace-nowrap text-[10px] leading-none",
-                mine ? "text-primary-foreground/75" : "text-muted-foreground/70",
-              )}
-            >
+            <span className="float-right ml-2 mt-1 flex items-center gap-0.5 whitespace-nowrap text-[10px] leading-none text-muted-foreground/70">
               {timeAgo(createdAt)}
               {mine && receipt && <MessageReceipt status={receipt} />}
             </span>
@@ -424,17 +424,10 @@ function MessageBubble({
             <button
               type="button"
               onClick={onReplyPreviewClick}
-              className={cn(
-                "mb-1 block w-full cursor-pointer rounded-md border-l-2 py-0.5 pl-2 pr-1 text-left text-xs",
-                mine
-                  ? "border-primary-foreground/50 bg-primary-foreground/10 hover:bg-primary-foreground/15"
-                  : "border-primary/50 bg-primary/5 hover:bg-primary/10",
-              )}
+              className="mb-1 block w-full cursor-pointer rounded-md border-l-2 border-primary/50 bg-primary/10 py-1 pl-2 pr-1 text-left text-xs transition-colors hover:bg-primary/15"
             >
-              <p className={cn("truncate font-medium", mine ? "text-primary-foreground/90" : "text-primary")}>
-                {replyPreview.senderName}
-              </p>
-              <p className={cn("truncate", mine ? "text-primary-foreground/70" : "text-muted-foreground")}>
+              <p className="truncate font-semibold text-primary">{replyPreview.senderName}</p>
+              <p className="truncate text-foreground/80">
                 {replyPreview.deleted ? "Message deleted" : replyPreview.body}
               </p>
             </button>
@@ -475,7 +468,7 @@ function MessageBubble({
                 className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                Delete for everyone
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -504,14 +497,16 @@ export default function Chat() {
   const onlineIds = useOnlinePresence();
   const isMobile = useIsMobile();
   const { resolvedTheme } = useTheme();
-  const { conversations, loading: loadingConversations, refresh } = useConversations();
+  const { conversations, loading: loadingConversations, error: conversationsError, refresh } = useConversations();
   const { setArchived, hideForMe, deleteConversation, setMuted, setPinned, removeMember, leaveGroup } =
     useConversationActions();
   const { blockedIds, block, unblock } = useBlockedUsers();
+  const { pendingIncomingCount } = useMessageRequests();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(searchParams.get("c"));
   const [mobileThreadOpen, setMobileThreadOpen] = useState(!!searchParams.get("c"));
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [requestsOpen, setRequestsOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState("");
   const [sending, setSending] = useState(false);
@@ -527,12 +522,14 @@ export default function Chat() {
   const {
     messages,
     loading: loadingMessages,
+    error: messagesError,
     typingUserIds,
     memberReadCursors,
     sendMessage,
     deleteMessage,
     notifyTyping,
     markRead,
+    refresh: refreshMessages,
   } = useMessages(activeId);
 
   // Deep-link support (e.g. from the notification bell): ?c=<conversationId>
@@ -768,7 +765,13 @@ export default function Chat() {
         </div>
       </div>
 
-      <div className="premium-card flex h-[calc(100dvh-11rem)] overflow-hidden p-0 sm:h-[calc(100dvh-13rem)]">
+      {/* DashboardLayout's content slot is `h-16` header + `p-6` (3rem)
+          padding, and this page's own title block above adds another
+          ~2.5-3rem — subtracting the real chrome height here (instead of
+          the previous, too-generous 11rem/13rem guess) lets the thread
+          actually reach the bottom of the viewport instead of leaving a
+          dead gap under it. */}
+      <div className="premium-card flex h-[calc(100dvh-11.5rem)] overflow-hidden p-0 sm:h-[calc(100dvh-10.5rem)]">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.05]"
           style={{
@@ -802,6 +805,24 @@ export default function Chat() {
             </Button>
           </div>
 
+          {pendingIncomingCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setRequestsOpen(true)}
+              className="flex w-full cursor-pointer items-center gap-2.5 border-b border-border bg-primary/5 px-3 py-2.5 text-left transition-colors hover:bg-primary/10"
+            >
+              <span className="glow-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                <Inbox className="h-4 w-4 text-primary" />
+              </span>
+              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
+                {pendingIncomingCount} message {pendingIncomingCount === 1 ? "request" : "requests"}
+              </span>
+              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                {pendingIncomingCount}
+              </span>
+            </button>
+          )}
+
           {archivedCount > 0 && (
             <div className="border-b border-border px-3 pt-2.5">
               <Tabs value={tab} onValueChange={(v) => setTab(v as "active" | "archived")}>
@@ -829,6 +850,18 @@ export default function Chat() {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : conversationsError ? (
+              <div className="flex flex-col items-center gap-3 p-8 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
+                  <WifiOff className="h-6 w-6 text-destructive" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Couldn't load your chats</p>
+                <p className="text-xs text-muted-foreground">{conversationsError}</p>
+                <Button variant="outline" size="sm" className="cursor-pointer gap-1.5" onClick={() => void refresh()}>
+                  <RotateCw className="h-3.5 w-3.5" />
+                  Retry
+                </Button>
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="flex flex-col items-center gap-3 p-8 text-center">
@@ -1043,12 +1076,33 @@ export default function Chat() {
                 </DropdownMenu>
               </div>
 
-              <ScrollArea className="flex-1 px-3 py-3 sm:px-4">
+              {/* Plain overflow-y-auto instead of the shared ScrollArea —
+                  Radix's ScrollArea Viewport wraps children in an internal
+                  `display:table` node that breaks percentage-height/flex
+                  sizing on the children (needed below to bottom-anchor a
+                  short thread instead of leaving a gap above the composer). */}
+              <div className="scrollbar-thin flex-1 overflow-y-auto px-3 py-3 sm:px-4">
                 {loadingMessages ? (
                   <div className="space-y-3">
                     {Array.from({ length: 4 }).map((_, i) => (
                       <Skeleton key={i} className={cn("h-12 w-2/3 rounded-2xl", i % 2 === 0 ? "ml-auto" : "")} />
                     ))}
+                  </div>
+                ) : messagesError ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
+                      <WifiOff className="h-6 w-6 text-destructive" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">Couldn't load messages</p>
+                      <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                        This might be a slow or dropped connection. {messagesError}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" className="cursor-pointer gap-1.5" onClick={() => void refreshMessages()}>
+                      <RotateCw className="h-3.5 w-3.5" />
+                      Retry
+                    </Button>
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-12 text-center">
@@ -1056,8 +1110,15 @@ export default function Chat() {
                     <p className="text-sm text-muted-foreground">No messages yet — say hello</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {messages.map((m) => {
+                  // min-h-full + justify-end anchors a short thread to the
+                  // bottom of the scroll area (like a real chat app) instead
+                  // of leaving a big empty gap between the last message and
+                  // the composer — once messages overflow, this still
+                  // scrolls normally from the top.
+                  <div className="flex min-h-full flex-col justify-end space-y-3">
+                    {messages
+                      .filter((m) => !(m.deleted_at && m.deleted_by === myUserId))
+                      .map((m) => {
                       const sender = directory.get(m.sender_app_user_id);
                       const mine = m.sender_app_user_id === myUserId;
                       const repliedTo = m.reply_to_message_id ? messagesById.get(m.reply_to_message_id) : undefined;
@@ -1108,7 +1169,7 @@ export default function Chat() {
                     <div ref={scrollRef} />
                   </div>
                 )}
-              </ScrollArea>
+              </div>
 
               {activeOtherBlockedByMe ? (
                 <div className="border-t border-border bg-card/60 p-3 text-center text-xs text-muted-foreground">
@@ -1207,6 +1268,15 @@ export default function Chat() {
         onCreated={(id) => {
           void refresh();
           setActiveId(id);
+        }}
+      />
+
+      <MessageRequestsDialog
+        open={requestsOpen}
+        onOpenChange={setRequestsOpen}
+        onAccepted={(id) => {
+          void refresh();
+          handleSelectConversation(id);
         }}
       />
 

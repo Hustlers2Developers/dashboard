@@ -197,6 +197,7 @@ const TYPING_BROADCAST_THROTTLE_MS = 2000;
 export function useMessages(conversationId: string | null) {
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [typingUserIds, setTypingUserIds] = useState<string[]>([]);
   const [memberReadCursors, setMemberReadCursors] = useState<ConversationMemberRow[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -208,25 +209,38 @@ export function useMessages(conversationId: string | null) {
       setMessages([]);
       setMemberReadCursors([]);
       setLoading(false);
+      setError(null);
       return;
     }
     setLoading(true);
-    await ensureSupabaseSession();
-    const [{ data: messageRows, error }, { data: memberRows }] = await Promise.all([
-      supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
-        .limit(500),
-      supabase
-        .from('conversation_members')
-        .select('conversation_id, app_user_id, joined_at, last_read_at, hidden_at, muted_at, pinned_at')
-        .eq('conversation_id', conversationId),
-    ]);
-    if (!error) setMessages(messageRows ?? []);
-    setMemberReadCursors(memberRows ?? []);
-    setLoading(false);
+    setError(null);
+    try {
+      await ensureSupabaseSession();
+      const [{ data: messageRows, error: messagesErr }, { data: memberRows, error: membersErr }] = await Promise.all([
+        supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true })
+          .limit(500),
+        supabase
+          .from('conversation_members')
+          .select('conversation_id, app_user_id, joined_at, last_read_at, hidden_at, muted_at, pinned_at')
+          .eq('conversation_id', conversationId),
+      ]);
+      // A failed fetch previously looked identical to "no messages yet" —
+      // silently leaving messages empty with no way to tell the user
+      // something actually went wrong (network blip, RLS issue, timeout)
+      // versus a genuinely empty conversation.
+      if (messagesErr) throw messagesErr;
+      setMessages(messageRows ?? []);
+      if (membersErr) throw membersErr;
+      setMemberReadCursors(memberRows ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load messages');
+    } finally {
+      setLoading(false);
+    }
   }, [conversationId]);
 
   useEffect(() => {
@@ -366,6 +380,7 @@ export function useMessages(conversationId: string | null) {
   return {
     messages,
     loading,
+    error,
     typingUserIds,
     memberReadCursors,
     sendMessage,
@@ -475,6 +490,19 @@ export function useCreateConversation() {
 /** Archive/unarchive (shared — visible to every member), "delete for me"
  * (per-member hide), and full delete (creator only) for a conversation. */
 export function useConversationActions() {
+  /** Marks a specific conversation read by ID — for callers that don't already have it open (e.g. "mark all read" in the notification bell). */
+  const markConversationRead = useCallback(async (conversationId: string) => {
+    await ensureSupabaseSession();
+    const myAppUserId = getUserId() ?? undefined;
+    if (!myAppUserId) throw new Error('Not authenticated for chat');
+    const { error } = await supabase
+      .from('conversation_members')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('app_user_id', myAppUserId);
+    if (error) throw error;
+  }, []);
+
   const setArchived = useCallback(async (conversationId: string, archived: boolean) => {
     await ensureSupabaseSession();
     const { error } = await supabase
@@ -554,7 +582,16 @@ export function useConversationActions() {
     if (error) throw error;
   }, []);
 
-  return { setArchived, hideForMe, deleteConversation, setMuted, setPinned, removeMember, leaveGroup };
+  return {
+    markConversationRead,
+    setArchived,
+    hideForMe,
+    deleteConversation,
+    setMuted,
+    setPinned,
+    removeMember,
+    leaveGroup,
+  };
 }
 
 /** Block/unblock another platform user — blocks a DM in both directions (new DM creation and new messages in an existing DM). */
@@ -621,6 +658,153 @@ export function useChatUnreadCount(): number {
   // Muted conversations still accrue unreads (so opening them shows what you
   // missed) but don't count toward the badge — that's the whole point of muting.
   return conversations.reduce((sum, c) => (c.myMembership?.muted_at ? sum : sum + c.unreadCount), 0);
+}
+
+export type MessageRequestStatus = 'pending' | 'accepted' | 'declined';
+
+export interface MessageRequestRow {
+  id: string;
+  from_app_user_id: string;
+  to_app_user_id: string;
+  status: MessageRequestStatus;
+  created_at: string;
+  responded_at: string | null;
+}
+
+/**
+ * Message requests for private profiles — starting a DM with someone whose
+ * profile is private creates a request instead of a conversation; the
+ * recipient accepts/declines before either side can actually message.
+ */
+export function useMessageRequests() {
+  const [incoming, setIncoming] = useState<MessageRequestRow[]>([]);
+  const [outgoing, setOutgoing] = useState<MessageRequestRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const instanceId = useId();
+
+  const load = useCallback(async () => {
+    await ensureSupabaseSession();
+    const myAppUserId = getUserId() ?? undefined;
+    if (!myAppUserId) {
+      setIncoming([]);
+      setOutgoing([]);
+      setLoading(false);
+      return;
+    }
+    const [{ data: incomingRows }, { data: outgoingRows }] = await Promise.all([
+      supabase
+        .from('message_requests')
+        .select('*')
+        .eq('to_app_user_id', myAppUserId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('message_requests')
+        .select('*')
+        .eq('from_app_user_id', myAppUserId)
+        .order('created_at', { ascending: false }),
+    ]);
+    setIncoming(incomingRows ?? []);
+    setOutgoing(outgoingRows ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await ensureSupabaseSession();
+      if (cancelled) return;
+      const channel = supabase
+        .channel(`message-requests-${instanceId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'message_requests' }, () => void load())
+        .subscribe();
+      channelRef.current = channel;
+    })();
+    return () => {
+      cancelled = true;
+      if (channelRef.current) void supabase.removeChannel(channelRef.current);
+    };
+  }, [load, instanceId]);
+
+  /** Sends a request, or returns the existing pending/accepted one between these two if there already is one. */
+  const sendRequest = useCallback(async (otherAppUserId: string): Promise<MessageRequestRow> => {
+    await ensureSupabaseSession();
+    const myAppUserId = getUserId() ?? undefined;
+    if (!myAppUserId) throw new Error('Not authenticated for chat');
+
+    const [a, b] = [myAppUserId, otherAppUserId].sort();
+    const { data: existing } = await supabase
+      .from('message_requests')
+      .select('*')
+      .or(`and(from_app_user_id.eq.${a},to_app_user_id.eq.${b}),and(from_app_user_id.eq.${b},to_app_user_id.eq.${a})`)
+      .in('status', ['pending', 'accepted'])
+      .maybeSingle();
+    if (existing) return existing;
+
+    const { data: created, error } = await supabase
+      .from('message_requests')
+      .insert({ from_app_user_id: myAppUserId, to_app_user_id: otherAppUserId })
+      .select()
+      .single();
+    if (error) {
+      // 23505 = unique_violation on message_requests_one_active_per_pair —
+      // a request already exists for this pair (e.g. local component state
+      // hadn't caught up yet after a very recent send, so the pre-check
+      // above didn't see it). Not a real failure: fetch and return the
+      // existing row instead of surfacing an error for something that
+      // already succeeded.
+      if (error.code === '23505') {
+        const { data: raceWinner, error: refetchErr } = await supabase
+          .from('message_requests')
+          .select('*')
+          .or(`and(from_app_user_id.eq.${a},to_app_user_id.eq.${b}),and(from_app_user_id.eq.${b},to_app_user_id.eq.${a})`)
+          .in('status', ['pending', 'accepted'])
+          .maybeSingle();
+        if (raceWinner) return raceWinner;
+        if (refetchErr) throw refetchErr;
+      }
+      throw error;
+    }
+    return created;
+  }, []);
+
+  const respondToRequest = useCallback(async (requestId: string, accept: boolean) => {
+    await ensureSupabaseSession();
+    const { error } = await supabase
+      .from('message_requests')
+      .update({ status: accept ? 'accepted' : 'declined', responded_at: new Date().toISOString() })
+      .eq('id', requestId);
+    if (error) throw error;
+  }, []);
+
+  /** Accepted or pending connection with this specific user, if any — used to decide whether a DM can open directly. */
+  const connectionWith = useCallback(
+    (otherAppUserId: string): MessageRequestRow | undefined => {
+      return [...incoming, ...outgoing].find(
+        (r) =>
+          (r.from_app_user_id === otherAppUserId || r.to_app_user_id === otherAppUserId) &&
+          r.status !== 'declined',
+      );
+    },
+    [incoming, outgoing],
+  );
+
+  const pendingIncomingCount = incoming.filter((r) => r.status === 'pending').length;
+
+  return {
+    incoming,
+    outgoing,
+    loading,
+    pendingIncomingCount,
+    sendRequest,
+    respondToRequest,
+    connectionWith,
+    refresh: load,
+  };
 }
 
 const PRESENCE_CHANNEL_NAME = 'chat-online-presence';

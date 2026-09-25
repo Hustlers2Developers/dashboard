@@ -9,7 +9,7 @@ import {
   MARK_ALL_NOTIFICATIONS_READ,
 } from "@/graphql/mutations/notifications";
 import { GET_ALL_USERS } from "@/graphql/mutations/users";
-import { useConversations, ConversationSummary } from "@/hooks/use-chat";
+import { useConversations, useConversationActions, ConversationSummary } from "@/hooks/use-chat";
 import { useAuthStore } from "@/stores/auth-store";
 import { timeAgo } from "@/lib/time-ago";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,7 @@ export function NotificationBell() {
   // Chat conversations come straight from Supabase Realtime (see use-chat.ts) —
   // updates land here as soon as a message arrives, no 30s poll wait.
   const { conversations: chatConversations } = useConversations();
+  const { markConversationRead } = useConversationActions();
   const { data: usersData } = useQuery<{ getAllUsers: PlatformUserDetails[] }>(GET_ALL_USERS, {
     variables: { orgId },
     skip: !orgId,
@@ -161,8 +162,10 @@ export function NotificationBell() {
       // best-effort
     }
     // Chat unread state lives in Supabase (conversation_members.last_read_at),
-    // not the GraphQL notifications table — "mark all read" only clears the
-    // GraphQL side; chat threads still clear individually when opened.
+    // not the GraphQL notifications table, so it needs its own pass here —
+    // otherwise chat entries stayed bright with their dot even after
+    // "Mark all read" (everything else in the feed correctly dimmed).
+    await Promise.allSettled(unreadChatConvos.map((c) => markConversationRead(c.id)));
   };
 
   return (
