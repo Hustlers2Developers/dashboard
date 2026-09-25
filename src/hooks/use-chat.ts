@@ -410,17 +410,14 @@ export function useCreateConversation() {
       .single();
     if (error) throw error;
 
-    // Insert both sides as members — without this, the creator never gets a
-    // conversation_members row, so useConversations() (which lists only
-    // conversations where I have a membership row) would never show a DM I
-    // just started, and the "other member" lookups used for title/admin
-    // labels would resolve against an incomplete member list.
+    // The `conversations_add_creator_as_member` DB trigger (AFTER INSERT on
+    // conversations) already adds the creator to conversation_members —
+    // inserting myAppUserId here too would collide with that and, since
+    // it's a single multi-row insert, roll back the other member's row too.
+    // Only the other side needs to be added explicitly.
     const { error: memberErr } = await supabase
       .from('conversation_members')
-      .insert([
-        { conversation_id: created.id, app_user_id: myAppUserId },
-        { conversation_id: created.id, app_user_id: otherAppUserId },
-      ]);
+      .insert({ conversation_id: created.id, app_user_id: otherAppUserId });
     if (memberErr) throw memberErr;
 
     return created.id;
@@ -444,14 +441,15 @@ export function useCreateConversation() {
         .single();
       if (error) throw error;
 
-      // Insert the creator too — same reasoning as createDm() above: without
-      // a membership row, the creator's own conversation list and admin
-      // label lookups silently miss this group.
+      // The `conversations_add_creator_as_member` DB trigger already adds
+      // the creator — only the other members need to be inserted here.
       const others = memberAppUserIds.filter((id) => id !== myAppUserId);
-      const { error: memberErr } = await supabase
-        .from('conversation_members')
-        .insert([myAppUserId, ...others].map((app_user_id) => ({ conversation_id: created.id, app_user_id })));
-      if (memberErr) throw memberErr;
+      if (others.length > 0) {
+        const { error: memberErr } = await supabase
+          .from('conversation_members')
+          .insert(others.map((app_user_id) => ({ conversation_id: created.id, app_user_id })));
+        if (memberErr) throw memberErr;
+      }
 
       return created.id;
     },
