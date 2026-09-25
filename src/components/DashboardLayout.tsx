@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   UserPlus,
   MessagesSquare,
+  Contact,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,7 @@ const getNavItems = (userRole?: string, isOrgAdmin?: boolean) => {
     { to: "/journey", label: "Journey", icon: Compass },
     { to: "/chat", label: "Chat", icon: MessagesSquare },
     { to: "/community", label: "Community", icon: Users2 },
+    { to: "/community/members", label: "Community Members", icon: Contact },
     { to: "/referral", label: "Referral", icon: UserPlus },
     { to: "/profile", label: "My Profile", icon: UserCircle },
     ...(isSuperAdmin
@@ -160,9 +162,21 @@ export const DashboardLayout = ({
             viewport; the aside itself doesn't scroll. */}
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {navItems.map((item) => {
-            const isActive =
-              location.pathname === item.to ||
-              location.pathname.startsWith(item.to + "/");
+            // Prefix match (e.g. /projects/123 highlights "Projects") except
+            // when a sibling nav item is a longer, more specific match for
+            // the CURRENT path (e.g. on /community/members, only "Community
+            // Members" should highlight, not also "Community" since
+            // /community/members starts with "/community/").
+            const isPrefixMatch = location.pathname.startsWith(item.to + "/");
+            const hasMoreSpecificMatch =
+              isPrefixMatch &&
+              navItems.some(
+                (other) =>
+                  other.to !== item.to &&
+                  other.to.startsWith(item.to + "/") &&
+                  (location.pathname === other.to || location.pathname.startsWith(other.to + "/")),
+              );
+            const isActive = location.pathname === item.to || (isPrefixMatch && !hasMoreSpecificMatch);
             return (
               <Link
                 key={item.to}

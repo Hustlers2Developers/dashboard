@@ -29,3 +29,12 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# Internal ops/debug notes — schema fixes, backend implementation notes,
+# and other scratch files that aren't part of the shipped application.
+chat_fixes.sql
+backend_*.md
+.scratch/
+.scratch*/
+.chat_check*.cjs
+.masking_test*.cjs

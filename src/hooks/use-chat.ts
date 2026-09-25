@@ -33,6 +33,7 @@ export interface MessageRow {
   created_at: string;
   deleted_at: string | null;
   deleted_by: string | null;
+  reply_to_message_id: string | null;
 }
 
 export interface ConversationSummary extends ConversationRow {
@@ -306,14 +307,17 @@ export function useMessages(conversationId: string | null) {
   }, [conversationId]);
 
   const sendMessage = useCallback(
-    async (body: string) => {
+    async (body: string, replyToMessageId?: string | null) => {
       if (!conversationId || !body.trim()) return;
       await ensureSupabaseSession();
       const myAppUserId = getUserId() ?? undefined;
       if (!myAppUserId) throw new Error('Not authenticated for chat');
-      const { error } = await supabase
-        .from('messages')
-        .insert({ conversation_id: conversationId, sender_app_user_id: myAppUserId, body: body.trim() });
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_app_user_id: myAppUserId,
+        body: body.trim(),
+        reply_to_message_id: replyToMessageId ?? null,
+      });
       if (error) throw error;
     },
     [conversationId],

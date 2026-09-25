@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { MY_PROFILE, UPDATE_PROFILE } from "@/graphql/mutations/users";
+import { apolloClient } from "@/lib/graphql-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { MY_PROFILE, UPDATE_PROFILE, GET_ALL_USERS } from "@/graphql/mutations/users";
 import { LINK_TELEGRAM_ACCOUNT, UNLINK_TELEGRAM_ACCOUNT } from "@/graphql/mutations/telegram";
 import { TelegramLoginWidget, type TelegramAuthPayload } from "@/components/TelegramLoginWidget";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,6 +124,7 @@ const initials = (name?: string | null, email?: string) => {
 };
 
 const Profile = () => {
+  const orgId = useAuthStore((s) => s.user?.orgId);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -225,9 +228,39 @@ const Profile = () => {
   const handleToggleVisibility = async (next: boolean) => {
     setSavingVisibility(true);
     try {
-      await updateProfile({ variables: { input: { isPublic: next } } });
+      const { data: mutationData } = await updateProfile({ variables: { input: { isPublic: next } } });
       toast.success(next ? "Your profile is now public." : "Your profile is now private.");
       await refetch();
+
+      // The cache has normalization off (addTypename: false, to avoid extra
+      // network chatter — see graphql-client.ts), so this update won't
+      // automatically flow into other pages' already-cached getAllUsers
+      // list (Community, chat's "Start a chat" dialog). Patch that one
+      // cached query directly instead of forcing every page to refetch.
+      const updated = mutationData?.updateProfile;
+      if (updated && orgId) {
+        try {
+          const existing = apolloClient.cache.readQuery<{ getAllUsers: ProfileData[] }>({
+            query: GET_ALL_USERS,
+            variables: { orgId },
+          });
+          if (existing) {
+            apolloClient.cache.writeQuery({
+              query: GET_ALL_USERS,
+              variables: { orgId },
+              data: {
+                getAllUsers: existing.getAllUsers.map((u) =>
+                  u.id === updated.id ? { ...u, details: updated.details } : u,
+                ),
+              },
+            });
+          }
+        } catch {
+          // No cached getAllUsers entry yet (e.g. Community/Chat never
+          // loaded this session) — nothing to patch, next real fetch will
+          // pick up the change naturally.
+        }
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update visibility.");
     } finally {

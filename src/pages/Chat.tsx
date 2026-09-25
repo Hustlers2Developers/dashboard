@@ -24,6 +24,9 @@ import {
   LogOut,
   Ban,
   ShieldOff,
+  Smile,
+  Reply,
+  X,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuthStore } from "@/stores/auth-store";
@@ -67,6 +70,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import EmojiPicker, { Theme as EmojiTheme, type EmojiClickData } from "emoji-picker-react";
+import { useTheme } from "next-themes";
 
 const URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<]+[^\s<.,:;!?'")\]]/gi;
 
@@ -202,11 +207,13 @@ function ConversationListItem({
       }}
       style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
       className={cn(
-        "group relative flex w-full animate-fade-slide-up items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-secondary/70",
-        active && "bg-secondary",
+        "group relative flex w-full cursor-pointer animate-fade-slide-up items-center gap-3 px-3.5 py-2.5 text-left transition-all duration-200 hover:bg-secondary/70",
+        active && "bg-secondary/80",
       )}
     >
-      {active && <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full gold-gradient" />}
+      {active && (
+        <span className="absolute inset-y-2 left-0 w-[3px] animate-pop-in rounded-r-full gold-gradient shadow-[0_0_8px_hsl(var(--primary)/0.5)]" />
+      )}
       <div className="relative shrink-0">
         {picUrl ? (
           <img
@@ -214,30 +221,34 @@ function ConversationListItem({
             alt={title}
             referrerPolicy="no-referrer"
             className={cn(
-              "h-11 w-11 rounded-full object-cover ring-2 ring-transparent transition-shadow",
+              "h-[54px] w-[54px] rounded-full object-cover ring-2 ring-transparent transition-all duration-200 group-hover:ring-primary/20",
               unread && "glow-primary",
+              active && "ring-primary/30",
             )}
           />
         ) : (
           <div
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold transition-shadow",
-              convo.kind === "dm" ? colorFor(otherId ?? convo.id) : "bg-gradient-to-br from-primary/20 to-accent/20 text-primary",
+              "flex h-[54px] w-[54px] items-center justify-center rounded-full text-base font-semibold shadow-sm ring-2 ring-transparent transition-all duration-200 group-hover:ring-primary/20",
+              convo.kind === "dm" ? colorFor(otherId ?? convo.id) : "bg-gradient-to-br from-primary/25 to-saffron/20 text-primary",
               unread && "glow-primary",
+              active && "ring-primary/30",
             )}
           >
-            {convo.kind === "dm" ? initials(other?.name, other?.email) : <Users className="h-4 w-4" />}
+            {convo.kind === "dm" ? initials(other?.name, other?.email) : <Users className="h-5 w-5" />}
           </div>
         )}
         {convo.kind === "dm" && isOnline && (
-          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card bg-emerald-500" />
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-card bg-emerald-500">
+            <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+          </span>
         )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1">
             {isPinned && <Pin className="h-3 w-3 shrink-0 fill-current text-muted-foreground" />}
-            <p className={cn("truncate text-sm text-foreground", unread ? "font-semibold" : "font-medium")}>{title}</p>
+            <p className={cn("truncate text-[15px] text-foreground", unread ? "font-semibold" : "font-medium")}>{title}</p>
           </div>
           {convo.lastMessage && (
             <span className={cn("shrink-0 text-[11px]", unread ? "text-primary font-medium" : "text-muted-foreground")}>
@@ -245,25 +256,27 @@ function ConversationListItem({
             </span>
           )}
         </div>
-        <div className="mt-0.5 flex items-center gap-1.5">
-          {isTemp && <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />}
-          {isMuted && <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
-          <p className={cn("truncate text-xs", unread ? "text-foreground/80" : "text-muted-foreground")}>
-            {convo.lastMessage ? (convo.lastMessage.deleted_at ? "Message deleted" : convo.lastMessage.body) : "No messages yet"}
-          </p>
+        <div className="mt-0.5 flex items-center justify-between gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
+            {isTemp && <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />}
+            {isMuted && <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
+            <p className={cn("truncate text-[13px]", unread ? "text-foreground/80" : "text-muted-foreground")}>
+              {convo.lastMessage ? (convo.lastMessage.deleted_at ? "Message deleted" : convo.lastMessage.body) : "No messages yet"}
+            </p>
+          </div>
+          {unread && (
+            <span className="flex h-5 min-w-5 shrink-0 animate-pop-in items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground shadow-sm">
+              {convo.unreadCount > 99 ? "99+" : convo.unreadCount}
+            </span>
+          )}
         </div>
       </div>
-      {unread && (
-        <Badge className="mt-1 h-5 min-w-5 shrink-0 animate-pop-in justify-center rounded-full border-0 bg-primary px-1.5 text-[10px] text-primary-foreground shadow-sm">
-          {convo.unreadCount > 99 ? "99+" : convo.unreadCount}
-        </Badge>
-      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
+            className="h-7 w-7 shrink-0 cursor-pointer self-start opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
             onClick={(e) => e.stopPropagation()}
           >
             <MoreVertical className="h-3.5 w-3.5" />
@@ -335,6 +348,12 @@ function MessageReceipt({ status }: { status: ReceiptStatus }) {
   return <Check className="h-3.5 w-3.5 text-muted-foreground/70" />;
 }
 
+interface ReplyPreviewInfo {
+  senderName: string;
+  body: string;
+  deleted: boolean;
+}
+
 function MessageBubble({
   mine,
   body,
@@ -343,6 +362,9 @@ function MessageBubble({
   receipt,
   deleted,
   onDelete,
+  onReply,
+  replyPreview,
+  onReplyPreviewClick,
 }: {
   mine: boolean;
   body: string;
@@ -351,6 +373,9 @@ function MessageBubble({
   receipt?: ReceiptStatus;
   deleted: boolean;
   onDelete?: () => void;
+  onReply?: () => void;
+  replyPreview?: ReplyPreviewInfo | null;
+  onReplyPreviewClick?: () => void;
 }) {
   const handleCopy = async () => {
     try {
@@ -367,20 +392,60 @@ function MessageBubble({
         {!mine && senderName && <span className="mb-0.5 px-1 text-[11px] font-medium text-muted-foreground">{senderName}</span>}
         <div
           className={cn(
-            "min-w-0 max-w-full rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm transition-transform duration-150 group-hover:scale-[1.01]",
+            "relative min-w-0 max-w-full rounded-[1.15rem] py-1.5 pl-3.5 pr-3 text-sm leading-relaxed transition-all duration-200 group-hover:-translate-y-px",
+            // Telegram-style tail: a small triangular notch on the bubble's
+            // outward-facing bottom corner, drawn with a pseudo-element so it
+            // inherits the bubble's own background/gradient exactly.
+            mine
+              ? "rounded-br-[0.3rem] after:absolute after:-right-[7px] after:bottom-0 after:h-[14px] after:w-[14px] after:[clip-path:polygon(0_0,0%_100%,100%_100%)]"
+              : "rounded-bl-[0.3rem] after:absolute after:-left-[7px] after:bottom-0 after:h-[14px] after:w-[14px] after:[clip-path:polygon(100%_0,0%_100%,100%_100%)]",
             deleted
-              ? "rounded-bl-sm border border-dashed border-border bg-transparent italic text-muted-foreground"
+              ? "border border-dashed border-border bg-transparent italic text-muted-foreground after:hidden"
               : mine
-                ? "rounded-br-sm gold-gradient text-primary-foreground"
-                : "rounded-bl-sm border border-border bg-card text-foreground",
+                ? "gold-gradient text-primary-foreground shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.45)] after:gold-gradient group-hover:shadow-[0_4px_16px_-2px_hsl(var(--primary)/0.55)]"
+                : "border border-border bg-card text-foreground shadow-sm after:border-b after:border-l after:border-border after:bg-card group-hover:shadow-md",
           )}
         >
-          <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{deleted ? "This message was deleted" : linkify(body)}</p>
+          {!deleted && (
+            // Floated so short/long text wraps around the timestamp like a
+            // real Telegram bubble, instead of the time sitting on its own
+            // line or overlapping the last word.
+            <span
+              className={cn(
+                "float-right ml-2 mt-1 flex items-center gap-0.5 whitespace-nowrap text-[10px] leading-none",
+                mine ? "text-primary-foreground/75" : "text-muted-foreground/70",
+              )}
+            >
+              {timeAgo(createdAt)}
+              {mine && receipt && <MessageReceipt status={receipt} />}
+            </span>
+          )}
+          {replyPreview && (
+            <button
+              type="button"
+              onClick={onReplyPreviewClick}
+              className={cn(
+                "mb-1 block w-full cursor-pointer rounded-md border-l-2 py-0.5 pl-2 pr-1 text-left text-xs",
+                mine
+                  ? "border-primary-foreground/50 bg-primary-foreground/10 hover:bg-primary-foreground/15"
+                  : "border-primary/50 bg-primary/5 hover:bg-primary/10",
+              )}
+            >
+              <p className={cn("truncate font-medium", mine ? "text-primary-foreground/90" : "text-primary")}>
+                {replyPreview.senderName}
+              </p>
+              <p className={cn("truncate", mine ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                {replyPreview.deleted ? "Message deleted" : replyPreview.body}
+              </p>
+            </button>
+          )}
+          <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+            {deleted ? "This message was deleted" : linkify(body)}
+          </p>
         </div>
-        <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-muted-foreground/70">
-          {timeAgo(createdAt)}
-          {mine && receipt && !deleted && <MessageReceipt status={receipt} />}
-        </span>
+        {deleted && (
+          <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-muted-foreground/70">{timeAgo(createdAt)}</span>
+        )}
       </div>
       {!deleted && (
         <DropdownMenu>
@@ -388,20 +453,26 @@ function MessageBubble({
             <Button
               size="icon"
               variant="ghost"
-              className="h-6 w-6 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100 data-[state=open]:opacity-100 hover:bg-secondary"
+              className="h-6 w-6 shrink-0 cursor-pointer self-center opacity-0 transition-all duration-150 group-hover:opacity-100 data-[state=open]:opacity-100 hover:bg-secondary"
             >
               <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align={mine ? "end" : "start"} className="animate-pop-in">
-            <DropdownMenuItem onClick={() => void handleCopy()}>
+            {onReply && (
+              <DropdownMenuItem onClick={onReply} className="cursor-pointer">
+                <Reply className="mr-2 h-4 w-4" />
+                Reply
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => void handleCopy()} className="cursor-pointer">
               <Copy className="mr-2 h-4 w-4" />
               Copy
             </DropdownMenuItem>
             {mine && onDelete && (
               <DropdownMenuItem
                 onClick={onDelete}
-                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -419,9 +490,9 @@ function TypingIndicator({ label }: { label?: string }) {
     <div className="flex animate-fade-slide-up flex-col items-start">
       {label && <span className="mb-0.5 px-1 text-[11px] font-medium text-muted-foreground">{label}</span>}
       <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-border bg-card px-3.5 py-2.5 shadow-sm">
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.3s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.15s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/70" />
       </div>
     </div>
   );
@@ -432,6 +503,7 @@ export default function Chat() {
   const { directory, directoryLoading } = useUserDirectory();
   const onlineIds = useOnlinePresence();
   const isMobile = useIsMobile();
+  const { resolvedTheme } = useTheme();
   const { conversations, loading: loadingConversations, refresh } = useConversations();
   const { setArchived, hideForMe, deleteConversation, setMuted, setPinned, removeMember, leaveGroup } =
     useConversationActions();
@@ -446,7 +518,11 @@ export default function Chat() {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [pendingDelete, setPendingDelete] = useState<ConversationSummary | null>(null);
   const [pendingLeave, setPendingLeave] = useState<ConversationSummary | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<MessageRow | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const messageRefs = useRef(new Map<string, HTMLDivElement>());
 
   const {
     messages,
@@ -473,6 +549,7 @@ export default function Chat() {
   const handleSelectConversation = (id: string) => {
     setActiveId(id);
     setMobileThreadOpen(true);
+    setReplyingTo(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("c", id);
@@ -508,6 +585,17 @@ export default function Chat() {
     if (otherReadCursors.length === 0) return "sent";
     const allRead = otherReadCursors.every((m) => m.last_read_at >= message.created_at);
     return allRead ? "read" : "sent";
+  };
+
+  const messagesById = useMemo(() => {
+    const map = new Map<string, MessageRow>();
+    for (const m of messages) map.set(m.id, m);
+    return map;
+  }, [messages]);
+
+  const registerMessageRef = (id: string, el: HTMLDivElement | null) => {
+    if (el) messageRefs.current.set(id, el);
+    else messageRefs.current.delete(id);
   };
 
   const filteredConversations = conversations
@@ -627,15 +715,46 @@ export default function Chat() {
     if (!draft.trim() || sending || activeOtherBlockedByMe) return;
     setSending(true);
     const body = draft;
+    const replyId = replyingTo?.id ?? null;
     setDraft("");
+    setReplyingTo(null);
     try {
-      await sendMessage(body);
+      await sendMessage(body, replyId);
     } catch {
       setDraft(body);
+      setReplyingTo(messages.find((m) => m.id === replyId) ?? null);
       toast.error("Message couldn't be sent — this DM may be blocked");
     } finally {
       setSending(false);
     }
+  };
+
+  const handleScrollToMessage = (messageId: string) => {
+    const el = messageRefs.current.get(messageId);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("ring-2", "ring-primary/50");
+    setTimeout(() => el.classList.remove("ring-2", "ring-primary/50"), 1200);
+  };
+
+  const handleEmojiSelect = (data: EmojiClickData) => {
+    const el = composerRef.current;
+    if (!el) {
+      setDraft((prev) => prev + data.emoji);
+      return;
+    }
+    // Insert at the cursor position rather than always appending, so
+    // picking an emoji mid-sentence lands where you were actually typing.
+    const start = el.selectionStart ?? draft.length;
+    const end = el.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + data.emoji + draft.slice(end);
+    setDraft(next);
+    notifyTyping();
+    requestAnimationFrame(() => {
+      el.focus();
+      const cursor = start + data.emoji.length;
+      el.setSelectionRange(cursor, cursor);
+    });
   };
 
   const showThread = isMobile ? mobileThreadOpen && !!activeConvo : true;
@@ -674,7 +793,11 @@ export default function Chat() {
                 className="h-9 border-border bg-background/60 pl-8"
               />
             </div>
-            <Button size="icon" className="h-9 w-9 shrink-0 gold-gradient text-primary-foreground" onClick={() => setNewChatOpen(true)}>
+            <Button
+              size="icon"
+              className="h-9 w-9 shrink-0 gold-gradient text-primary-foreground shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.5)] transition-transform duration-200 hover:scale-105 active:scale-95"
+              onClick={() => setNewChatOpen(true)}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -937,17 +1060,38 @@ export default function Chat() {
                     {messages.map((m) => {
                       const sender = directory.get(m.sender_app_user_id);
                       const mine = m.sender_app_user_id === myUserId;
+                      const repliedTo = m.reply_to_message_id ? messagesById.get(m.reply_to_message_id) : undefined;
+                      const replyPreview = m.reply_to_message_id
+                        ? repliedTo
+                          ? {
+                              senderName:
+                                repliedTo.sender_app_user_id === myUserId
+                                  ? "You"
+                                  : directory.get(repliedTo.sender_app_user_id)?.name ||
+                                    directory.get(repliedTo.sender_app_user_id)?.email ||
+                                    "Someone",
+                              body: repliedTo.body,
+                              deleted: !!repliedTo.deleted_at,
+                            }
+                          : { senderName: "Message", body: "Original message unavailable", deleted: true }
+                        : null;
                       return (
-                        <MessageBubble
-                          key={m.id}
-                          mine={mine}
-                          body={m.body}
-                          createdAt={m.created_at}
-                          senderName={activeConvo.kind !== "dm" ? sender?.name || sender?.email : undefined}
-                          receipt={mine ? receiptFor(m) : undefined}
-                          deleted={!!m.deleted_at}
-                          onDelete={mine ? () => void handleDeleteMessage(m.id) : undefined}
-                        />
+                        <div key={m.id} ref={(el) => registerMessageRef(m.id, el)}>
+                          <MessageBubble
+                            mine={mine}
+                            body={m.body}
+                            createdAt={m.created_at}
+                            senderName={activeConvo.kind !== "dm" ? sender?.name || sender?.email : undefined}
+                            receipt={mine ? receiptFor(m) : undefined}
+                            deleted={!!m.deleted_at}
+                            onDelete={mine ? () => void handleDeleteMessage(m.id) : undefined}
+                            onReply={() => setReplyingTo(m)}
+                            replyPreview={replyPreview}
+                            onReplyPreviewClick={
+                              m.reply_to_message_id ? () => handleScrollToMessage(m.reply_to_message_id!) : undefined
+                            }
+                          />
+                        </div>
                       );
                     })}
                     {typingUserIds.length > 0 && (
@@ -971,8 +1115,61 @@ export default function Chat() {
                   You've blocked this user — unblock them to send messages.
                 </div>
               ) : (
-                <div className="flex items-end gap-2 border-t border-border bg-card/60 p-2.5 backdrop-blur-sm sm:p-3">
+                <div className="border-t border-border bg-card/60 backdrop-blur-sm">
+                  {replyingTo && (
+                    <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2 animate-fade-slide-up sm:px-4">
+                      <Reply className="h-4 w-4 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-primary">
+                          Replying to{" "}
+                          {replyingTo.sender_app_user_id === myUserId
+                            ? "yourself"
+                            : directory.get(replyingTo.sender_app_user_id)?.name ||
+                              directory.get(replyingTo.sender_app_user_id)?.email ||
+                              "them"}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {replyingTo.deleted_at ? "Message deleted" : replyingTo.body}
+                        </p>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 shrink-0 cursor-pointer"
+                        onClick={() => setReplyingTo(null)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex items-end gap-2 p-2.5 sm:p-3">
+                  <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-10 w-10 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-primary"
+                      >
+                        <Smile className="h-5 w-5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" side="top" className="w-auto border-none p-0 shadow-xl">
+                      <EmojiPicker
+                        onEmojiClick={(data) => {
+                          handleEmojiSelect(data);
+                          setEmojiOpen(false);
+                        }}
+                        theme={resolvedTheme === "dark" ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                        lazyLoadEmojis
+                        searchDisabled={false}
+                        skinTonesDisabled
+                        height={360}
+                        width={320}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <Textarea
+                    ref={composerRef}
                     value={draft}
                     onChange={(e) => {
                       setDraft(e.target.value);
@@ -985,17 +1182,18 @@ export default function Chat() {
                       }
                     }}
                     placeholder="Type a message..."
-                    className="max-h-32 min-h-10 flex-1 resize-none border-border bg-background/60 text-base sm:text-sm"
+                    className="max-h-32 min-h-10 flex-1 resize-none border-border bg-background/60 text-base transition-shadow duration-200 focus-visible:shadow-[0_0_0_3px_hsl(var(--primary)/0.12)] sm:text-sm"
                     rows={1}
                   />
                   <Button
                     size="icon"
-                    className="h-10 w-10 shrink-0 gold-gradient text-primary-foreground disabled:opacity-40"
+                    className="h-10 w-10 shrink-0 cursor-pointer gold-gradient text-primary-foreground shadow-[0_2px_10px_-2px_hsl(var(--primary)/0.5)] transition-transform duration-200 hover:scale-105 active:scale-90 disabled:scale-100 disabled:opacity-40 disabled:shadow-none"
                     disabled={!draft.trim() || sending}
                     onClick={() => void handleSend()}
                   >
                     <Send className="h-4 w-4" />
                   </Button>
+                  </div>
                 </div>
               )}
             </>

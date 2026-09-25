@@ -11,7 +11,10 @@ export type CommunityUserDetails = {
 
 export type CommunityUser = {
   id: string;
-  email: string;
+  // Nullable — the backend masks this to null for a private (isPublic:
+  // false) member when the viewer isn't an admin (see getAllUsers
+  // resolver's anonymizeUser) — name is "Anonymous user" in that case too.
+  email: string | null;
   name?: string | null;
   systemRole: string;
   createdAt: string;

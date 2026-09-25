@@ -45,16 +45,16 @@ export function NewChatDialog({ open, onOpenChange, onCreated }: NewChatDialogPr
   const { createDm, createGroup } = useCreateConversation();
   const { blockedIds } = useBlockedUsers();
 
-  // Only community members with a public profile can be messaged here —
-  // matches the visibility toggle on the Profile page and how Community's
-  // own member directory scopes who's listed. Users I've blocked are left
-  // out too — messaging them would just fail server-side (messages_enforce_dm_block).
+  // Any org member can be messaged here regardless of their Community
+  // profile visibility — chat is org-wide, not gated by the public/private
+  // profile toggle (that toggle only controls the Community directory).
+  // Users I've blocked are still left out — messaging them would just fail
+  // server-side (messages_enforce_dm_block).
   const candidates = useMemo(() => {
     const q = search.trim().toLowerCase();
     const deduped = new Map<string, CommunityUser>();
     for (const u of data?.getAllUsers ?? []) {
       if (u.id === currentUserId) continue;
-      if (u.details?.isPublic === false) continue;
       if (blockedIds.has(u.id)) continue;
       deduped.set(u.id, u);
     }
