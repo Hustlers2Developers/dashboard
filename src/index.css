@@ -200,6 +200,14 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground) / 0.4);
   }
+  /* Some Chromium/Windows builds still render the legacy up/down arrow
+     buttons at the ends of a webkit scrollbar even with a custom thumb —
+     collapse them so only the thin thumb+track show. */
+  .scrollbar-thin::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
 }
 
 /* Fix hover background and text color for destructive ghost buttons */

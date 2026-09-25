@@ -771,7 +771,7 @@ export default function Chat() {
           the previous, too-generous 11rem/13rem guess) lets the thread
           actually reach the bottom of the viewport instead of leaving a
           dead gap under it. */}
-      <div className="premium-card flex h-[calc(100dvh-11.5rem)] overflow-hidden p-0 sm:h-[calc(100dvh-10.5rem)]">
+      <div className="premium-card flex h-[calc(100dvh-11.5rem)] !rounded-b-none overflow-hidden p-0 sm:h-[calc(100dvh-10.5rem)]">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.05]"
           style={{
